@@ -1,9 +1,4 @@
 import type { APIRoute } from 'astro';
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: import.meta.env.OPENAI_API_KEY
-});
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -16,12 +11,19 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: `You are a professional cinematographer and visual storytelling expert. Analyze the given script segment and provide detailed visual direction.
+    // Use fetch instead of OpenAI SDK
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional cinematographer and visual storytelling expert. Analyze the given script segment and provide detailed visual direction.
 
 Your analysis should cover:
 1. Emotional Atmosphere:
@@ -62,17 +64,23 @@ Format your response as a JSON object with these keys:
   "emphasis": "key visual emphasis and symbolism",
   "cameraDirection": "specific camera movement and framing guidance"
 }`
-        },
-        {
-          role: "user",
-          content: scriptSegment
-        }
-      ],
-      temperature: 0.7,
-      response_format: { type: "json_object" }
+          },
+          {
+            role: "user",
+            content: scriptSegment
+          }
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" }
+      })
     });
 
-    const analysis = completion.choices[0]?.message?.content;
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const analysis = data.choices[0]?.message?.content;
     
     if (!analysis) {
       throw new Error('Failed to analyze script segment');
