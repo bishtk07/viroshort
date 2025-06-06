@@ -26,27 +26,7 @@ export default defineConfig({
   },
   vite: {
     ssr: {
-      external: ['replicate', 'openai', 'elevenlabs'],
       noExternal: ['@supabase/supabase-js']
-    },
-    build: {
-      rollupOptions: {
-        external: ['replicate', 'openai', 'elevenlabs'],
-        output: {
-          manualChunks: {
-            'react-vendor': ['react', 'react-dom'],
-            'supabase': ['@supabase/supabase-js']
-          }
-        }
-      }
-    },
-    server: {
-      watch: {
-        usePolling: true
-      },
-      hmr: {
-        port: 24678
-      }
     }
   }
 }); 

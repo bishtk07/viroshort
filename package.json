@@ -26,10 +26,8 @@
     "dotenv": "^16.5.0",
     "framer-motion": "^10.18.0",
     "lucide-react": "^0.312.0",
-    "openai": "^4.24.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "replicate": "^0.25.1",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7"
   },
