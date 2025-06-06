@@ -1,7 +1,68 @@
 import type { APIRoute } from 'astro';
 
 export const GET: APIRoute = async () => {
-  return handleRequest();
+  try {
+    console.log('🔍 test-config: Starting configuration test...');
+    
+    // Test all possible environment variable sources
+    const importMetaKey = import.meta.env.ELEVEN_LABS_API_KEY;
+    const processEnvKey = process.env.ELEVEN_LABS_API_KEY;
+    
+    console.log('🔍 Environment check:', {
+      importMeta: {
+        available: !!importMetaKey,
+        value: importMetaKey ? `${importMetaKey.substring(0, 8)}...` : 'not found',
+        length: importMetaKey ? importMetaKey.length : 0
+      },
+      processEnv: {
+        available: !!processEnvKey,
+        value: processEnvKey ? `${processEnvKey.substring(0, 8)}...` : 'not found',
+        length: processEnvKey ? processEnvKey.length : 0
+      },
+      nodeEnv: process.env.NODE_ENV,
+      allImportMetaEnv: Object.keys(import.meta.env).filter(k => k.includes('ELEVEN')),
+      allProcessEnv: Object.keys(process.env).filter(k => k.includes('ELEVEN'))
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        config: {
+          hasImportMetaKey: !!importMetaKey,
+          hasProcessEnvKey: !!processEnvKey,
+          importMetaKeyLength: importMetaKey ? importMetaKey.length : 0,
+          processEnvKeyLength: processEnvKey ? processEnvKey.length : 0,
+          nodeEnv: process.env.NODE_ENV,
+          elevenlabsKeys: {
+            importMeta: Object.keys(import.meta.env).filter(k => k.includes('ELEVEN')),
+            processEnv: Object.keys(process.env).filter(k => k.includes('ELEVEN'))
+          }
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+  } catch (error) {
+    console.error('🚨 test-config: Error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+  }
 };
 
 export const POST: APIRoute = async () => {

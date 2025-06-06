@@ -9,7 +9,8 @@ interface ElevenLabsVoice {
     accent?: string;
     gender?: string;
     age?: string;
-    [key: string]: string | undefined;
+    premium?: boolean;
+    [key: string]: string | boolean | undefined;
   };
 }
 
@@ -21,16 +22,29 @@ export const GET: APIRoute = async () => {
   try {
     console.log('🔍 get-voices: Starting API call...');
     
-    // Access environment variables with fallback - NO LOCALS DEPENDENCY
-    const ELEVEN_LABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
-                               process.env.ELEVEN_LABS_API_KEY;
+    // Access environment variables with proper fallback chain
+    const ELEVEN_LABS_API_KEY = 
+      import.meta.env.ELEVEN_LABS_API_KEY || 
+      process.env.ELEVEN_LABS_API_KEY;
     
-    if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_api_key_here') {
-      console.error('🚨 get-voices: API key not found or invalid');
+    console.log('🔍 get-voices: Environment check:', {
+      hasImportMetaKey: !!import.meta.env.ELEVEN_LABS_API_KEY,
+      hasProcessEnvKey: !!process.env.ELEVEN_LABS_API_KEY,
+      finalKeyFound: !!ELEVEN_LABS_API_KEY,
+      keyLength: ELEVEN_LABS_API_KEY ? ELEVEN_LABS_API_KEY.length : 0
+    });
+    
+    if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_elevenlabs_api_key_here') {
+      console.error('🚨 get-voices: API key not found or is placeholder value');
       return new Response(
         JSON.stringify({ 
           error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to your environment variables.',
-          success: false
+          success: false,
+          debug: {
+            hasImportMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
+            hasProcessEnv: !!process.env.ELEVEN_LABS_API_KEY,
+            nodeEnv: process.env.NODE_ENV
+          }
         }), 
         { 
           status: 500,
@@ -97,12 +111,14 @@ export const GET: APIRoute = async () => {
 
     console.log(`✅ get-voices: Successfully fetched ${data.voices.length} voices`);
 
-    // Add premium flag to voices with certain keywords in their names
+    // Add premium flag to voices based on various criteria
     const processedVoices = data.voices.map(voice => ({
       ...voice,
       labels: {
         ...voice.labels,
-        premium: voice.name.toLowerCase().includes('premium')
+        premium: voice.name.toLowerCase().includes('premium') || 
+                voice.name.toLowerCase().includes('pro') ||
+                voice.category === 'premium'
       }
     }));
 
@@ -125,7 +141,8 @@ export const GET: APIRoute = async () => {
       JSON.stringify({ 
         error: 'Unexpected server error while fetching voices',
         details: error instanceof Error ? error.message : 'Unknown error',
-        success: false
+        success: false,
+        stack: error instanceof Error ? error.stack : undefined
       }), 
       { 
         status: 500,
