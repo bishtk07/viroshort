@@ -112,13 +112,19 @@ if (!template || !duration || !aspectRatio || !script) {
                   <p id="selected-voice-name" class="text-gray-400 text-sm"></p>
                 </div>
               </div>
-              <div class="flex gap-3">
-                <button id="back-to-voices" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">
+              <div class="flex items-center gap-4">
+                <button id="back-to-voices" class="text-gray-400 hover:text-white transition-colors">
                   Change Voice
                 </button>
-                <button id="generate-audio-btn" class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-2 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <span id="generating-text" class="hidden">Generating...</span>
+                <button id="generate-audio-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors">
                   <span id="default-text">Generate Audio</span>
+                  <span id="generating-text" class="hidden">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Generating...
+                  </span>
                 </button>
               </div>
             </div>
@@ -229,9 +235,26 @@ if (!template || !duration || !aspectRatio || !script) {
     });
     
     function initializePage() {
+      console.log('🎭 Initializing page...');
+      
       // Set script preview
       if (script) {
-        document.getElementById('script-preview').textContent = decodeURIComponent(script);
+        const decodedScript = decodeURIComponent(script);
+        document.getElementById('script-preview').textContent = decodedScript;
+        console.log('🎭 Script loaded, length:', decodedScript.length);
+      } else {
+        console.warn('🚨 No script parameter found in URL');
+      }
+      
+      // Try to restore selected voice from session
+      try {
+        const savedVoice = sessionStorage.getItem('selectedVoice');
+        if (savedVoice) {
+          selectedVoice = JSON.parse(savedVoice);
+          console.log('🎭 Restored selected voice from session:', selectedVoice);
+        }
+      } catch (e) {
+        console.warn('Could not restore from sessionStorage', e);
       }
       
       // Set up event listeners
@@ -251,11 +274,6 @@ if (!template || !duration || !aspectRatio || !script) {
       // Retry button
       document.getElementById('retry-voices').addEventListener('click', loadVoices);
       
-      // Modal controls
-      document.getElementById('close-modal').addEventListener('click', closeModal);
-      document.getElementById('replay-audio').addEventListener('click', replayAudio);
-      document.getElementById('select-voice-btn').addEventListener('click', selectCurrentVoice);
-      
       // Continue section
       document.getElementById('back-to-voices').addEventListener('click', () => {
         selectedVoice = null;
@@ -264,11 +282,6 @@ if (!template || !duration || !aspectRatio || !script) {
       });
       
       document.getElementById('generate-audio-btn').addEventListener('click', generateAudio);
-      
-      // Close modal on outside click
-      document.getElementById('audio-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'audio-modal') closeModal();
-      });
     }
     
     async function loadVoices() {
@@ -356,20 +369,67 @@ if (!template || !duration || !aspectRatio || !script) {
           const voiceName = card.dataset.voiceName;
           selectVoice(voiceId, voiceName);
         });
+        
+        // Highlight previously selected voice if any
+        if (selectedVoice && card.dataset.voiceId === selectedVoice.id) {
+          card.classList.add('selected');
+          updateContinueSection();
+          console.log('🎭 Restored UI selection for voice:', selectedVoice.name);
+        }
       });
       
       // Add preview button listeners
       grid.querySelectorAll('.preview-button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const card = e.target.closest('.voice-card');
           const voiceId = card.dataset.voiceId;
-          const voiceName = card.dataset.voiceName;
-          previewVoice(voiceId, voiceName);
+          
+          try {
+            const btn = e.target;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = `
+              <svg class="animate-spin h-4 w-4 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Loading...
+            `;
+            
+            const response = await fetch('/api/preview-voice', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ voiceId })
+            });
+            
+            if (!response.ok) {
+              throw new Error('Failed to generate preview');
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success || !data.audioUrl) {
+              throw new Error(data.error || 'Failed to generate preview');
+            }
+            
+            const audio = new Audio(data.audioUrl);
+            await audio.play();
+            
+            btn.disabled = false;
+            btn.textContent = originalText;
+            
+          } catch (error) {
+            console.error('🚨 Error previewing voice:', error);
+            alert('Failed to preview voice. Please try again.');
+            
+            btn.disabled = false;
+            btn.textContent = 'Preview Voice';
+          }
         });
       });
-      
-      console.log(`🎭 Rendered ${filteredVoices.length} voice cards`);
     }
     
     function filterVoices(voices) {
@@ -424,9 +484,17 @@ if (!template || !duration || !aspectRatio || !script) {
     }
     
     function selectVoice(voiceId, voiceName) {
-      console.log('🎭 Selecting voice:', voiceId, voiceName);
+      console.log('🎭 Selecting voice:', { id: voiceId, name: voiceName });
       
+      // Store the selected voice
       selectedVoice = { id: voiceId, name: voiceName };
+      
+      // Save to sessionStorage as backup
+      try {
+        sessionStorage.setItem('selectedVoice', JSON.stringify(selectedVoice));
+      } catch (e) {
+        console.warn('Could not save to sessionStorage', e);
+      }
       
       // Update UI
       document.querySelectorAll('.voice-card').forEach(card => {
@@ -437,116 +505,8 @@ if (!template || !duration || !aspectRatio || !script) {
       });
       
       updateContinueSection();
-    }
-    
-    async function previewVoice(voiceId, voiceName) {
-      console.log('🎭 Previewing voice:', voiceId, voiceName);
       
-      currentPreviewVoice = { id: voiceId, name: voiceName };
-      showAudioModal(voiceName);
-      
-      try {
-        const response = await fetch('/api/preview-voice', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ voiceId })
-        });
-        
-        console.log('🎭 Preview response status:', response.status);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        // Check if response is JSON (error) or audio
-        const contentType = response.headers.get('Content-Type');
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Preview failed');
-        }
-        
-        // Response is audio data
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        
-        showAudioPlayer(audioUrl);
-        
-      } catch (error) {
-        console.error('🚨 Error previewing voice:', error);
-        showPreviewError();
-      }
-    }
-    
-    function showAudioModal(voiceName) {
-      console.log('🎭 Showing audio modal for:', voiceName);
-      
-      document.getElementById('modal-voice-name').textContent = voiceName;
-      document.getElementById('audio-modal').classList.remove('hidden');
-      
-      // Show loading state
-      document.getElementById('preview-loading').classList.remove('hidden');
-      document.getElementById('preview-error').classList.add('hidden');
-      document.getElementById('audio-player-container').classList.add('hidden');
-    }
-    
-    function showAudioPlayer(audioUrl) {
-      console.log('🎭 Showing audio player');
-      
-      document.getElementById('preview-loading').classList.add('hidden');
-      document.getElementById('preview-error').classList.add('hidden');
-      document.getElementById('audio-player-container').classList.remove('hidden');
-      
-      const audio = document.getElementById('preview-audio');
-      audio.src = audioUrl;
-      
-      // Auto-play the audio
-      audio.currentTime = 0;
-      audio.play().catch(e => console.log('🎭 Auto-play prevented:', e));
-    }
-    
-    function showPreviewError() {
-      console.log('🎭 Showing preview error');
-      
-      document.getElementById('preview-loading').classList.add('hidden');
-      document.getElementById('audio-player-container').classList.add('hidden');
-      document.getElementById('preview-error').classList.remove('hidden');
-    }
-    
-    function closeModal() {
-      console.log('🎭 Closing audio modal');
-      
-      const modal = document.getElementById('audio-modal');
-      const audio = document.getElementById('preview-audio');
-      
-      audio.pause();
-      if (audio.src) {
-        URL.revokeObjectURL(audio.src);
-        audio.src = '';
-      }
-      modal.classList.add('hidden');
-      
-      // Reset modal state
-      document.getElementById('preview-loading').classList.add('hidden');
-      document.getElementById('preview-error').classList.add('hidden');
-      document.getElementById('audio-player-container').classList.add('hidden');
-    }
-    
-    function replayAudio() {
-      console.log('🎭 Replaying audio');
-      
-      const audio = document.getElementById('preview-audio');
-      audio.currentTime = 0;
-      audio.play();
-    }
-    
-    function selectCurrentVoice() {
-      if (currentPreviewVoice) {
-        console.log('🎭 Selecting current preview voice:', currentPreviewVoice);
-        selectVoice(currentPreviewVoice.id, currentPreviewVoice.name);
-        closeModal();
-      }
+      console.log('🎭 Voice selection complete, stored:', selectedVoice);
     }
     
     function updateContinueSection() {
@@ -565,12 +525,30 @@ if (!template || !duration || !aspectRatio || !script) {
     
     async function generateAudio() {
       if (!selectedVoice || !script) {
-        console.error('🚨 Missing required data for audio generation');
-        alert('Please select a voice first');
+        console.error('🚨 Missing required data for audio generation:', {
+          hasVoice: !!selectedVoice,
+          voiceId: selectedVoice?.id,
+          hasScript: !!script,
+          scriptLength: script?.length
+        });
+        
+        // Show more specific error message
+        if (!selectedVoice) {
+          alert('Please select a voice before generating audio');
+        } else if (!script) {
+          alert('Script is missing. Please go back to the create page and enter a script');
+        } else {
+          alert('Script and voice ID are required');
+        }
         return;
       }
       
-      console.log('🎭 Generating audio with voice:', selectedVoice.id);
+      const decodedScript = decodeURIComponent(script);
+      console.log('🎭 Generating audio with:', {
+        voiceId: selectedVoice.id,
+        scriptLength: decodedScript.length,
+        scriptPreview: decodedScript.substring(0, 50) + '...'
+      });
       
       const btn = document.getElementById('generate-audio-btn');
       const generatingText = document.getElementById('generating-text');
@@ -581,13 +559,18 @@ if (!template || !duration || !aspectRatio || !script) {
       defaultText.classList.add('hidden');
       
       try {
+        console.log('🎭 Sending audio generation request with payload:', {
+          voiceId: selectedVoice.id,
+          scriptLength: decodedScript.length
+        });
+        
         const response = await fetch('/api/generate-audio', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            script: decodeURIComponent(script),
+            script: decodedScript,
             voiceId: selectedVoice.id
           })
         });

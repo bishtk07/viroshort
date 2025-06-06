@@ -53,12 +53,24 @@ export default function VoiceSelector({ onVoiceSelect, selectedVoiceId, classNam
     }
   }
 
-  const handleVoiceSelect = (voice: Voice) => {
+  async function handleVoiceSelect(voice: Voice) {
+    console.log('Selecting voice:', voice);
     onVoiceSelect(voice.voice_id, voice.name);
-  };
+    
+    // Update UI to show selected voice
+    document.querySelectorAll('.voice-card').forEach(card => {
+      if (card instanceof HTMLElement) {
+        card.classList.remove('selected');
+        if (card.dataset.voiceId === voice.voice_id) {
+          card.classList.add('selected');
+        }
+      }
+    });
+  }
 
   async function previewVoice(voice: Voice) {
     try {
+      console.log('Previewing voice:', voice);
       setPreviewingVoice(voice);
       setPreviewModalVisible(true);
       setPreviewLoading(true);
@@ -74,17 +86,23 @@ export default function VoiceSelector({ onVoiceSelect, selectedVoiceId, classNam
       });
 
       const data = await response.json();
+      console.log('Preview response:', data);
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to generate preview');
       }
 
       setAudioSrc(data.audioUrl);
+      
+      // Create and play audio
       const audio = new Audio(data.audioUrl);
-      audio.play().catch(console.error);
+      audio.play().catch(error => {
+        console.error('Error playing audio:', error);
+      });
+      
     } catch (error) {
-      setPreviewError(error instanceof Error ? error.message : 'Failed to preview voice');
       console.error('Error previewing voice:', error);
+      setPreviewError(error instanceof Error ? error.message : 'Failed to preview voice');
     } finally {
       setPreviewLoading(false);
     }
