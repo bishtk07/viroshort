@@ -2,14 +2,18 @@ import type { APIRoute } from 'astro';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const { topic, style, duration } = await request.json();
+    const { prompt, duration, template } = await request.json();
 
-    if (!topic) {
+    if (!prompt && !template) {
       return new Response(
-        JSON.stringify({ error: 'Missing topic' }),
+        JSON.stringify({ error: 'Missing prompt or template' }),
         { status: 400 }
       );
     }
+
+    // Create topic based on prompt or template
+    const topic = prompt || template;
+    const targetDuration = duration || 60;
 
     // Use fetch instead of OpenAI SDK
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -23,43 +27,32 @@ export const POST: APIRoute = async ({ request }) => {
         messages: [
           {
             role: "system",
-            content: `You are a professional scriptwriter specializing in creating engaging video scripts. Create a compelling script based on the given parameters.
+            content: `You are a professional scriptwriter specializing in creating engaging short-form video scripts for platforms like TikTok, Instagram Reels, and YouTube Shorts.
 
-The script should be:
-- Engaging and attention-grabbing from the first line
-- Well-structured with clear narrative flow
-- Appropriate for the specified duration (${duration} seconds)
-- Written in ${style} style
-- Include visual cues and direction for video production
-- Have a strong hook, clear middle, and compelling conclusion
+Create a compelling script that is:
+- Engaging from the very first word with a strong hook
+- Appropriate for ${targetDuration} seconds duration
+- Written in a conversational, energetic style
+- Structured with clear beginning, middle, and end
+- Includes natural speech patterns and pauses
+- Designed to keep viewers watching until the end
+- Around ${Math.floor(targetDuration * 2.5)} words (average speaking pace)
 
-Format the response as a JSON object with:
-{
-  "title": "compelling video title",
-  "script": "full script text with scene directions",
-  "segments": [
-    {
-      "text": "segment text",
-      "duration": seconds,
-      "visualCues": "description of what should be shown"
-    }
-  ],
-  "totalDuration": estimated_duration_in_seconds,
-  "style": "${style}",
-  "hooks": ["key engaging elements"]
-}`
+IMPORTANT: Return ONLY the script text as a plain string, no JSON formatting, no additional structure. Just the raw script that can be read aloud.`
           },
           {
             role: "user",
-            content: `Create a ${duration}-second video script about: ${topic}. Style: ${style}`
+            content: `Create a ${targetDuration}-second engaging video script about: ${topic}`
           }
         ],
         temperature: 0.8,
-        response_format: { type: "json_object" }
+        max_tokens: Math.floor(targetDuration * 8) // Roughly 8 tokens per second
       })
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error:', errorText);
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
@@ -67,11 +60,20 @@ Format the response as a JSON object with:
     const scriptContent = data.choices[0]?.message?.content;
     
     if (!scriptContent) {
-      throw new Error('Failed to generate script');
+      throw new Error('Failed to generate script content');
     }
 
+    // Clean the script content
+    const cleanScript = scriptContent.trim();
+
     return new Response(
-      scriptContent,
+      JSON.stringify({ 
+        success: true,
+        script: cleanScript,
+        duration: targetDuration,
+        template: template || 'custom',
+        wordCount: cleanScript.split(/\s+/).length
+      }),
       { 
         status: 200,
         headers: {
@@ -82,7 +84,10 @@ Format the response as a JSON object with:
   } catch (error) {
     console.error('Error generating script:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to generate script' }),
+      JSON.stringify({ 
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to generate script'
+      }),
       { 
         status: 500,
         headers: {

@@ -1,0 +1,5 @@
+[33m21ad58a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Remove Tools and Create buttons, add comprehensive User Profile page with password change functionality
+[33m55db9ae[m[33m ([m[1;31morigin/main[m[33m)[m Fix: Completely remove all Node.js SDK imports from generate-images.ts
+[33m923d11e[m Remove all OpenAI SDK dependencies and use fetch API
+[33m9279e77[m Remove Node.js dependencies for Cloudflare compatibility
+[33m66a5a9a[m Fix Cloudflare deployment: Remove Node.js dependencies and update config
