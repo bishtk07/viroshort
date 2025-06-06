@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ locals }) => {
   try {
-    // Check multiple environment sources
+    // Access environment variables from Cloudflare runtime
     const openaiKey = (locals as any).runtime?.env?.OPENAI_API_KEY || 
                      import.meta.env.OPENAI_API_KEY || 
                      process.env.OPENAI_API_KEY;
@@ -10,47 +10,29 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const elevenLabsKey = (locals as any).runtime?.env?.ELEVEN_LABS_API_KEY || 
                          import.meta.env.ELEVEN_LABS_API_KEY || 
                          process.env.ELEVEN_LABS_API_KEY;
-    
-    const config = {
-      hasOpenAI: !!openaiKey,
-      hasElevenLabs: !!elevenLabsKey,
-      openAILength: openaiKey ? openaiKey.length : 0,
-      elevenLabsLength: elevenLabsKey ? elevenLabsKey.length : 0,
-      // Debug info
-      openAIPrefix: openaiKey ? openaiKey.substring(0, 8) + '...' : 'not found',
-      elevenLabsPrefix: elevenLabsKey ? elevenLabsKey.substring(0, 8) + '...' : 'not found',
-      environment: import.meta.env.MODE || 'unknown',
-      platform: 'cloudflare-pages',
-      // Environment source debugging
-      sources: {
-        cloudflareRuntime: {
-          openai: !!(locals as any).runtime?.env?.OPENAI_API_KEY,
-          elevenLabs: !!(locals as any).runtime?.env?.ELEVEN_LABS_API_KEY
-        },
-        importMeta: {
-          openai: !!import.meta.env.OPENAI_API_KEY,
-          elevenLabs: !!import.meta.env.ELEVEN_LABS_API_KEY
-        },
-        processEnv: {
-          openai: !!process.env.OPENAI_API_KEY,
-          elevenLabs: !!process.env.ELEVEN_LABS_API_KEY
-        }
-      }
-    };
 
-    console.log('Environment check:', {
-      openAI: config.hasOpenAI,
-      elevenLabs: config.hasElevenLabs,
-      mode: config.environment,
-      sources: config.sources
+    console.log('Environment sources checked:', {
+      openai: {
+        cloudflareRuntime: !!(locals as any).runtime?.env?.OPENAI_API_KEY,
+        importMeta: !!import.meta.env.OPENAI_API_KEY,
+        processEnv: !!process.env.OPENAI_API_KEY
+      },
+      elevenLabs: {
+        cloudflareRuntime: !!(locals as any).runtime?.env?.ELEVEN_LABS_API_KEY,
+        importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
+        processEnv: !!process.env.ELEVEN_LABS_API_KEY
+      }
     });
 
     return new Response(
-      JSON.stringify({ 
-        success: true,
-        config
+      JSON.stringify({
+        openaiConfigured: !!(openaiKey && openaiKey !== 'your_api_key_here'),
+        elevenLabsConfigured: !!(elevenLabsKey && elevenLabsKey !== 'your_api_key_here'),
+        openaiLength: openaiKey ? openaiKey.length : 0,
+        elevenLabsLength: elevenLabsKey ? elevenLabsKey.length : 0,
+        timestamp: new Date().toISOString()
       }),
-      { 
+      {
         status: 200,
         headers: {
           'Content-Type': 'application/json'
@@ -58,13 +40,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     );
   } catch (error) {
-    console.error('Error in test-config:', error);
+    console.error('Error checking configuration:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error instanceof Error ? error.message : 'Configuration test failed'
+      JSON.stringify({
+        error: 'Failed to check configuration',
+        details: error instanceof Error ? error.message : 'Unknown error'
       }),
-      { 
+      {
         status: 500,
         headers: {
           'Content-Type': 'application/json'
