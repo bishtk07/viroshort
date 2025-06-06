@@ -17,15 +17,20 @@ interface ElevenLabsResponse {
 
 export const GET: APIRoute = async () => {
   try {
-    // Access environment variables with fallback
-    const ELEVENLABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
-                              process.env.ELEVEN_LABS_API_KEY;
+    // Access environment variables with fallback - CONSISTENT NAMING
+    const ELEVEN_LABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
+                               process.env.ELEVEN_LABS_API_KEY;
     
-    if (!ELEVENLABS_API_KEY || ELEVENLABS_API_KEY === 'your_api_key_here') {
+    if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_api_key_here') {
       console.error('ElevenLabs API key not properly configured');
+      console.log('Environment check:', {
+        importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
+        processEnv: !!process.env.ELEVEN_LABS_API_KEY,
+        nodeEnv: process.env.NODE_ENV
+      });
       return new Response(
         JSON.stringify({ 
-          error: 'ElevenLabs API key not configured. Please add your API key to environment variables.',
+          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to environment variables.',
           success: false
         }), 
         { 
@@ -37,19 +42,23 @@ export const GET: APIRoute = async () => {
       );
     }
 
-    console.log('ElevenLabs API key found with length:', ELEVENLABS_API_KEY.length);
+    console.log('ElevenLabs API key found with length:', ELEVEN_LABS_API_KEY.length);
     console.log('Fetching voices from ElevenLabs...'); // Debug log
 
     const response = await fetch('https://api.elevenlabs.io/v1/voices', {
       headers: {
         'Accept': 'application/json',
-        'xi-api-key': ELEVENLABS_API_KEY
+        'xi-api-key': ELEVEN_LABS_API_KEY
       }
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs API error:', errorText);
+      console.error('ElevenLabs API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText
+      });
       
       return new Response(
         JSON.stringify({ 

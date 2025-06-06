@@ -23,16 +23,21 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    // Access environment variables with fallback
-    const ELEVENLABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
-                              process.env.ELEVEN_LABS_API_KEY;
+    // Access environment variables with fallback - CONSISTENT NAMING
+    const ELEVEN_LABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
+                               process.env.ELEVEN_LABS_API_KEY;
     
-    if (!ELEVENLABS_API_KEY || ELEVENLABS_API_KEY === 'your_api_key_here') {
+    if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_api_key_here') {
       console.error('ElevenLabs API key not properly configured');
+      console.log('Environment check for preview:', {
+        importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
+        processEnv: !!process.env.ELEVEN_LABS_API_KEY,
+        keyLength: ELEVEN_LABS_API_KEY ? ELEVEN_LABS_API_KEY.length : 0
+      });
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'ElevenLabs API key not configured. Please add your API key to environment variables.' 
+          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to environment variables.' 
         }), 
         { 
           status: 500,
@@ -44,7 +49,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     console.log('Generating voice preview for voice ID:', voiceId);
-    console.log('ElevenLabs API key found with length:', ELEVENLABS_API_KEY.length);
+    console.log('ElevenLabs API key found with length:', ELEVEN_LABS_API_KEY.length);
 
     // Generate voice preview using ElevenLabs API
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -52,7 +57,7 @@ export const POST: APIRoute = async ({ request }) => {
       headers: {
         'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
-        'xi-api-key': ELEVENLABS_API_KEY
+        'xi-api-key': ELEVEN_LABS_API_KEY
       },
       body: JSON.stringify({
         text: PREVIEW_TEXT,
@@ -66,7 +71,12 @@ export const POST: APIRoute = async ({ request }) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs API error:', errorText);
+      console.error('ElevenLabs API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        voiceId,
+        errorText
+      });
       
       return new Response(
         JSON.stringify({ 
@@ -85,11 +95,19 @@ export const POST: APIRoute = async ({ request }) => {
 
     // Convert audio response to base64 for direct use
     const audioBuffer = await response.arrayBuffer();
+    
+    if (!audioBuffer || audioBuffer.byteLength === 0) {
+      throw new Error('Received empty audio data from ElevenLabs API');
+    }
+    
     const audioArray = new Uint8Array(audioBuffer);
     const audioBase64 = Buffer.from(audioArray).toString('base64');
     const audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
 
-    console.log('Voice preview generated successfully');
+    console.log('Voice preview generated successfully:', {
+      voiceId,
+      audioSize: audioBuffer.byteLength
+    });
 
     return new Response(
       JSON.stringify({

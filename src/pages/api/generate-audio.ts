@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request }) => {
   try {
     const { text, voiceId } = await request.json();
 
@@ -17,15 +17,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Access environment variables from Cloudflare runtime
-    const ELEVEN_LABS_API_KEY = (locals as any).runtime?.env?.ELEVEN_LABS_API_KEY || 
-                               import.meta.env.ELEVEN_LABS_API_KEY || 
+    // Access environment variables with fallback - NO LOCALS DEPENDENCY
+    const ELEVEN_LABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
                                process.env.ELEVEN_LABS_API_KEY;
     
     if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_api_key_here') {
       console.error('ElevenLabs API key not properly configured');
       console.log('Environment sources checked:', {
-        cloudflareRuntime: !!(locals as any).runtime?.env?.ELEVEN_LABS_API_KEY,
         importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
         processEnv: !!process.env.ELEVEN_LABS_API_KEY
       });

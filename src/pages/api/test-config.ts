@@ -1,26 +1,24 @@
 import type { APIRoute } from 'astro';
 
-export const POST: APIRoute = async ({ locals }) => {
+export const POST: APIRoute = async () => {
   try {
-    // Access environment variables from multiple sources with fallback
-    const openaiKey = (locals as any)?.runtime?.env?.OPENAI_API_KEY || 
-                     import.meta.env.OPENAI_API_KEY || 
+    // Access environment variables with fallback - NO LOCALS DEPENDENCY
+    const openaiKey = import.meta.env.OPENAI_API_KEY || 
                      process.env.OPENAI_API_KEY;
     
-    const elevenLabsKey = (locals as any)?.runtime?.env?.ELEVEN_LABS_API_KEY || 
-                         import.meta.env.ELEVEN_LABS_API_KEY || 
+    const elevenLabsKey = import.meta.env.ELEVEN_LABS_API_KEY || 
                          process.env.ELEVEN_LABS_API_KEY;
 
     console.log('Environment sources checked:', {
       openai: {
-        cloudflareRuntime: !!(locals as any)?.runtime?.env?.OPENAI_API_KEY,
         importMeta: !!import.meta.env.OPENAI_API_KEY,
-        processEnv: !!process.env.OPENAI_API_KEY
+        processEnv: !!process.env.OPENAI_API_KEY,
+        keyLength: openaiKey ? openaiKey.length : 0
       },
       elevenLabs: {
-        cloudflareRuntime: !!(locals as any)?.runtime?.env?.ELEVEN_LABS_API_KEY,
         importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
-        processEnv: !!process.env.ELEVEN_LABS_API_KEY
+        processEnv: !!process.env.ELEVEN_LABS_API_KEY,
+        keyLength: elevenLabsKey ? elevenLabsKey.length : 0
       }
     });
 
@@ -30,9 +28,9 @@ export const POST: APIRoute = async ({ locals }) => {
       openaiLength: openaiKey ? openaiKey.length : 0,
       elevenLabsLength: elevenLabsKey ? elevenLabsKey.length : 0,
       timestamp: new Date().toISOString(),
-      runtime: {
-        hasLocals: !!locals,
-        hasCloudflareRuntime: !!(locals as any)?.runtime?.env
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        platform: typeof process !== 'undefined' ? 'node' : 'browser'
       }
     };
 
