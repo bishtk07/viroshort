@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request }) => {
   try {
     console.log('🔍 preview-voice: Starting API call...');
     
@@ -24,36 +24,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     console.log('🔍 preview-voice: Voice ID:', voiceId);
     
-    // Try all possible sources for the API key with comprehensive logging
-    const cloudflareKey = (locals as any).runtime?.env?.ELEVEN_LABS_API_KEY;
-    const importMetaKey = import.meta.env.ELEVEN_LABS_API_KEY;
-    const processEnvKey = process.env.ELEVEN_LABS_API_KEY;
-    
-    console.log('🔍 preview-voice: Environment sources check:', {
-      cloudflareRuntime: !!cloudflareKey,
-      cloudflareLength: cloudflareKey ? cloudflareKey.length : 0,
-      importMeta: !!importMetaKey,
-      importMetaLength: importMetaKey ? importMetaKey.length : 0,
-      processEnv: !!processEnvKey,
-      processEnvLength: processEnvKey ? processEnvKey.length : 0,
-      nodeEnv: process.env.NODE_ENV
-    });
-    
-    // Use the first available key
-    const ELEVEN_LABS_API_KEY = cloudflareKey || importMetaKey || processEnvKey;
+    // Access environment variables with fallback - NO LOCALS DEPENDENCY
+    const ELEVEN_LABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
+                               process.env.ELEVEN_LABS_API_KEY;
     
     if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_api_key_here') {
       console.error('🚨 preview-voice: API key not found or invalid');
       return new Response(
         JSON.stringify({ 
-          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to your Cloudflare Pages environment variables.',
-          success: false,
-          debug: {
-            cloudflareAvailable: !!cloudflareKey,
-            importMetaAvailable: !!importMetaKey,
-            processEnvAvailable: !!processEnvKey,
-            nodeEnv: process.env.NODE_ENV
-          }
+          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to your environment variables.',
+          success: false
         }), 
         { 
           status: 500,
@@ -104,15 +84,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         JSON.stringify({ 
           error: `ElevenLabs API error: ${response.status} ${response.statusText}`,
           details: errorText,
-          success: false,
-          debug: {
-            voiceId,
-            apiKeyLength: ELEVEN_LABS_API_KEY.length,
-            requestBody: {
-              text: previewText,
-              model: "eleven_monolingual_v1"
-            }
-          }
+          success: false
         }), 
         { 
           status: response.status,
@@ -126,15 +98,22 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const audioBuffer = await response.arrayBuffer();
     console.log('✅ preview-voice: Successfully generated audio, size:', audioBuffer.byteLength);
 
-    // Return audio data directly (not JSON)
-    return new Response(audioBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': audioBuffer.byteLength.toString(),
-        'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+    // Convert audio buffer to base64 data URL
+    const base64Audio = Buffer.from(audioBuffer).toString('base64');
+    const audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        audioUrl
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       }
-    });
+    );
 
   } catch (error) {
     console.error('🚨 preview-voice: Unexpected error:', error);
@@ -142,11 +121,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       JSON.stringify({ 
         error: 'Unexpected server error during voice preview',
         details: error instanceof Error ? error.message : 'Unknown error',
-        success: false,
-        debug: {
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
-          stack: error instanceof Error ? error.stack : undefined
-        }
+        success: false
       }), 
       { 
         status: 500,

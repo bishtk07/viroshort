@@ -1,6 +1,14 @@
 import type { APIRoute } from 'astro';
 
+export const GET: APIRoute = async () => {
+  return handleRequest();
+};
+
 export const POST: APIRoute = async () => {
+  return handleRequest();
+};
+
+async function handleRequest() {
   try {
     // Access environment variables with fallback - NO LOCALS DEPENDENCY
     const openaiKey = import.meta.env.OPENAI_API_KEY || 
@@ -23,10 +31,13 @@ export const POST: APIRoute = async () => {
     });
 
     const result = {
-      openaiConfigured: !!(openaiKey && openaiKey !== 'your_api_key_here'),
-      elevenLabsConfigured: !!(elevenLabsKey && elevenLabsKey !== 'your_api_key_here'),
-      openaiLength: openaiKey ? openaiKey.length : 0,
-      elevenLabsLength: elevenLabsKey ? elevenLabsKey.length : 0,
+      success: true,
+      config: {
+        hasOpenAI: !!(openaiKey && openaiKey !== 'your_api_key_here'),
+        hasElevenLabs: !!(elevenLabsKey && elevenLabsKey !== 'your_api_key_here'),
+        openAILength: openaiKey ? openaiKey.length : 0,
+        elevenLabsLength: elevenLabsKey ? elevenLabsKey.length : 0
+      },
       timestamp: new Date().toISOString(),
       environment: {
         nodeEnv: process.env.NODE_ENV,
@@ -49,6 +60,7 @@ export const POST: APIRoute = async () => {
     console.error('Error checking configuration:', error);
     return new Response(
       JSON.stringify({
+        success: false,
         error: 'Failed to check configuration',
         details: error instanceof Error ? error.message : 'Unknown error'
       }),
@@ -60,4 +72,4 @@ export const POST: APIRoute = async () => {
       }
     );
   }
-}; 
+} 
