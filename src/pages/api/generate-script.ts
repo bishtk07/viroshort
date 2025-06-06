@@ -1,122 +1,184 @@
 import type { APIRoute } from 'astro';
 
-export const POST: APIRoute = async ({ request, locals }) => {
+const OPENAI_API_KEY = import.meta.env.OPENAI_API_KEY;
+
+// Template definitions for better script generation
+const TEMPLATES: Record<string, string> = {
+  'custom': 'Create a custom video script that is engaging and memorable. Focus on: ',
+  'random': 'Generate a unique and creative story that surprises and entertains. Theme: ',
+  'travel': 'Create an inspiring travel narrative that captures the essence of exploration. Focus on: ',
+  'what-if': 'Explore a fascinating hypothetical scenario that makes people think. Consider: ',
+  'scary': 'Create a spine-chilling story with psychological suspense. Setting: ',
+  'bedtime': 'Craft a soothing and imaginative bedtime story that helps relaxation. Story about: ',
+  'history': 'Share a fascinating historical tale that surprises and educates. Topic: ',
+  'urban-legends': 'Tell an intriguing urban legend that captures imagination. Focus on: ',
+  'motivational': 'Create an inspiring message that motivates and energizes. Theme: ',
+  'fun-facts': 'Share mind-blowing facts that surprise and educate. Subject: ',
+  'jokes': 'Craft a clever and entertaining long-form joke. Topic: ',
+  'life-tips': 'Share a practical and valuable life hack. Area: '
+};
+
+export const POST: APIRoute = async ({ request }) => {
+  console.log('=== GENERATE SCRIPT API CALLED ===');
+  
   try {
-    const { prompt, duration, template } = await request.json();
-
-    if (!prompt && !template) {
-      return new Response(
-        JSON.stringify({ error: 'Missing prompt or template' }),
-        { status: 400 }
-      );
-    }
-
-    // Create topic based on prompt or template
-    const topic = prompt || template;
-    const targetDuration = duration || 60;
-
-    // Access environment variables from Cloudflare runtime
-    const OPENAI_API_KEY = (locals as any).runtime?.env?.OPENAI_API_KEY || 
-                          import.meta.env.OPENAI_API_KEY || 
-                          process.env.OPENAI_API_KEY;
-
     if (!OPENAI_API_KEY) {
-      console.error('OpenAI API key not found in any environment source');
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'OpenAI API key not configured. Please check environment variables in Cloudflare Pages.' 
-        }),
-        { status: 500 }
-      );
+      console.error('OpenAI API key not found');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'OpenAI API key not configured',
+        errorType: 'configuration'
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    console.log('OpenAI API key found with length:', OPENAI_API_KEY.length);
-    console.log('Environment sources checked:', {
-      cloudflareRuntime: !!(locals as any).runtime?.env?.OPENAI_API_KEY,
-      importMeta: !!import.meta.env.OPENAI_API_KEY,
-      processEnv: !!process.env.OPENAI_API_KEY
-    });
+    const { prompt, duration, template } = await request.json();
+    console.log('Request data:', { prompt, duration, template });
 
-    // Use fetch instead of OpenAI SDK
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    if (!prompt || !duration) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Missing required parameters: prompt and duration',
+        errorType: 'validation'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Format prompt based on template
+    const templateEnhancement = TEMPLATES[template as string] || '';
+    const fullPrompt = `${templateEnhancement}${prompt}`;
+
+    console.log('Full prompt being sent:', fullPrompt);
+
+    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: "gpt-4",
+        model: 'gpt-3.5-turbo',
         messages: [
           {
-            role: "system",
-            content: `You are a professional scriptwriter specializing in creating engaging short-form video scripts for platforms like TikTok, Instagram Reels, and YouTube Shorts.
-
-Create a compelling script that is:
-- Engaging from the very first word with a strong hook
-- Appropriate for ${targetDuration} seconds duration
-- Written in a conversational, energetic style
-- Structured with clear beginning, middle, and end
-- Includes natural speech patterns and pauses
-- Designed to keep viewers watching until the end
-- Around ${Math.floor(targetDuration * 2.5)} words (average speaking pace)
-
-IMPORTANT: Return ONLY the script text as a plain string, no JSON formatting, no additional structure. Just the raw script that can be read aloud.`
+            role: 'system',
+            content: `You are a creative scriptwriter for short-form video content. Create engaging, viral-worthy scripts that:
+            - Are exactly ${duration} seconds long when spoken at normal pace
+            - Hook viewers in the first 3 seconds
+            - Have clear, conversational language
+            - Include emotional moments or surprising elements
+            - End with impact or call-to-action
+            - Are suitable for visual storytelling
+            
+            Format: Return ONLY the script text, no additional formatting or explanations.`
           },
           {
-            role: "user",
-            content: `Create a ${targetDuration}-second engaging video script about: ${topic}`
+            role: 'user',
+            content: fullPrompt
           }
         ],
+        max_tokens: Math.min(1000, duration * 15), // Roughly 15 tokens per second
         temperature: 0.8,
-        max_tokens: Math.floor(targetDuration * 8) // Roughly 8 tokens per second
-      })
+      }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
+    console.log('OpenAI Response Status:', openAIResponse.status);
 
-    const data = await response.json();
-    const scriptContent = data.choices[0]?.message?.content;
-    
-    if (!scriptContent) {
-      throw new Error('Failed to generate script content');
-    }
-
-    // Clean the script content
-    const cleanScript = scriptContent.trim();
-
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        script: cleanScript,
-        duration: targetDuration,
-        template: template || 'custom',
-        wordCount: cleanScript.split(/\s+/).length
-      }),
-      { 
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json'
-        }
+    if (!openAIResponse.ok) {
+      const errorText = await openAIResponse.text();
+      console.error('OpenAI API Error:', errorText);
+      
+      let errorData: any;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: { message: errorText } };
       }
-    );
-  } catch (error) {
-    console.error('Error generating script:', error);
-    return new Response(
-      JSON.stringify({ 
+
+      // Handle specific error types
+      let errorType = 'api_error';
+      let userMessage = 'Failed to generate script. Please try again.';
+
+      if (openAIResponse.status === 429) {
+        if (errorData.error?.code === 'insufficient_quota') {
+          errorType = 'quota_exceeded';
+          userMessage = 'OpenAI API quota exceeded. Please check your billing or enter a script manually.';
+        } else {
+          errorType = 'rate_limit';
+          userMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        }
+      } else if (openAIResponse.status === 401) {
+        errorType = 'authentication';
+        userMessage = 'API authentication failed. Please check your OpenAI API key.';
+      } else if (openAIResponse.status === 400) {
+        errorType = 'bad_request';
+        userMessage = 'Invalid request. Please try with different parameters.';
+      }
+
+      return new Response(JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to generate script'
-      }),
-      { 
+        error: userMessage,
+        errorType: errorType,
+        details: errorData.error?.message || errorText
+      }), {
+        status: openAIResponse.status,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const data = await openAIResponse.json();
+    console.log('OpenAI Response:', data);
+
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Invalid OpenAI response structure:', data);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid response from OpenAI API',
+        errorType: 'response_format'
+      }), {
         status: 500,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const script = data.choices[0].message.content.trim();
+    
+    if (!script) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Empty script generated',
+        errorType: 'empty_response'
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('Generated script:', script.substring(0, 100) + '...');
+
+    return new Response(JSON.stringify({
+      success: true,
+      script: script,
+      wordCount: script.split(/\s+/).length,
+      estimatedDuration: duration
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Unexpected error in generate-script:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'An unexpected error occurred. Please try again.',
+      errorType: 'server_error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }; 

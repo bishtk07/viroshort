@@ -10,6 +10,13 @@ const templates = [
     prompt: 'Create a custom video script based on user input.'
   },
   {
+    id: 'manual',
+    name: 'Manual Script Input',
+    description: 'Enter your own pre-written script directly.',
+    icon: '✍️',
+    prompt: 'manual-input'
+  },
+  {
     id: 'random',
     name: 'Random AI Story',
     description: 'Generate a completely unique and engaging story.',
@@ -108,21 +115,21 @@ declare global {
 ---
 
 <Layout title="Create Amazing Videos with AI">
-  <main class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <main class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
     <div class="max-w-7xl mx-auto">
-      <div class="text-center mb-12">
+      <div class="text-center mb-8">
         <h1 class="text-4xl font-bold text-gray-900 mb-4">Create Amazing Videos with AI</h1>
-        <p class="text-xl text-gray-600">Transform your ideas into engaging videos using AI-powered tools. Choose from our templates or create your own custom content.</p>
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto">Transform your ideas into engaging videos using AI-powered tools. Choose from our templates or create your own custom content.</p>
       </div>
 
       <!-- Duration Selection -->
-      <div class="max-w-3xl mx-auto mb-12">
+      <div class="max-w-3xl mx-auto mb-8">
         <h2 class="text-2xl font-semibold text-gray-900 mb-4">Select Duration</h2>
-        <div class="flex gap-4 justify-center">
+        <div class="flex gap-4 justify-center flex-wrap">
           {durations.map(({ value, label }) => (
             <button 
               data-duration={value}
-              class="duration-btn px-6 py-3 rounded-lg border-2 border-blue-500 text-blue-500 font-medium hover:bg-blue-50 transition-colors"
+              class="duration-btn px-6 py-3 rounded-lg border-2 border-blue-500 text-blue-500 font-medium hover:bg-blue-50 transition-all duration-200 hover:scale-105"
             >
               {label}
             </button>
@@ -131,13 +138,13 @@ declare global {
       </div>
 
       <!-- Aspect Ratio Selection -->
-      <div class="max-w-3xl mx-auto mb-12">
+      <div class="max-w-3xl mx-auto mb-8">
         <h2 class="text-2xl font-semibold text-gray-900 mb-4">Select Aspect Ratio</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           {aspectRatios.map(({ value, label, description }) => (
             <button 
               data-aspect-ratio={value}
-              class="aspect-ratio-btn p-4 rounded-lg border-2 border-blue-500 text-blue-500 font-medium hover:bg-blue-50 transition-colors text-center"
+              class="aspect-ratio-btn p-4 rounded-lg border-2 border-blue-500 text-blue-500 font-medium hover:bg-blue-50 transition-all duration-200 hover:scale-105 text-center"
             >
               <div class="font-semibold">{label}</div>
               <div class="text-sm text-gray-600 mt-1">{description}</div>
@@ -147,10 +154,10 @@ declare global {
       </div>
 
       <!-- Art Style Selection -->
-      <div class="max-w-3xl mx-auto mb-12">
+      <div class="max-w-3xl mx-auto mb-8">
         <h2 class="text-2xl font-semibold text-gray-900 mb-4">Select Art Style</h2>
         <div class="relative">
-          <select id="artStyleSelect" class="w-full p-4 rounded-lg border-2 border-blue-500 text-gray-900 font-medium bg-white appearance-none cursor-pointer">
+          <select id="artStyleSelect" class="w-full p-4 rounded-lg border-2 border-blue-500 text-gray-900 font-medium bg-white appearance-none cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
             <option value="viroshorts">Viroshorts - Cinematic 8K Ultra HD</option>
             <option value="lego">LEGO - LEGO brick style</option>
             <option value="comic-book">Comic Book - Bold comic style</option>
@@ -174,6 +181,28 @@ declare global {
         </div>
       </div>
 
+      <!-- Manual Script Input (Initially Hidden) -->
+      <div id="manualScriptSection" class="max-w-3xl mx-auto mb-8 hidden">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Enter Your Script</h2>
+        <div class="bg-white rounded-lg border border-gray-200 p-6">
+          <textarea 
+            id="manualScriptInput"
+            placeholder="Enter your script here..."
+            class="w-full h-32 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+          ></textarea>
+          <div class="flex justify-between items-center mt-4">
+            <span id="wordCount" class="text-sm text-gray-600">0 words</span>
+            <button 
+              id="useManualScript"
+              class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled
+            >
+              Use This Script
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Test Configuration Button (Debug) -->
       <div class="max-w-3xl mx-auto mb-8 text-center">
         <button 
@@ -188,9 +217,9 @@ declare global {
       <!-- Template Grid -->
       <div class="max-w-7xl mx-auto">
         <h2 class="text-2xl font-semibold text-gray-900 mb-8">Choose a Template</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {templates.map(template => (
-            <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-105">
               <div class="p-6">
                 <div class="text-3xl mb-4">{template.icon}</div>
                 <h3 class="text-xl font-semibold text-gray-900 mb-2">{template.name}</h3>
@@ -198,15 +227,35 @@ declare global {
                 <button 
                   data-template-id={template.id}
                   data-prompt={template.prompt}
-                  onclick={`generateScript('${template.id}', '${template.prompt}')`}
-                  class="generate-btn w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors opacity-50 cursor-not-allowed"
+                  onclick={`handleTemplateClick('${template.id}', '${template.prompt}')`}
+                  class="generate-btn w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-200 font-medium opacity-50 cursor-not-allowed disabled:opacity-50"
                   disabled
                 >
-                  Generate Script
+                  {template.id === 'manual' ? 'Enter Script Manually' : 'Generate Script'}
                 </button>
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <!-- Error Message Display -->
+      <div id="errorMessage" class="max-w-3xl mx-auto mt-8 hidden">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm font-medium text-red-800">Error</h3>
+              <div class="mt-2 text-sm text-red-700">
+                <p id="errorText"></p>
+              </div>
+              <div class="mt-4" id="errorActions"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -258,6 +307,26 @@ declare global {
     checkEnableGenerate();
   });
 
+  // Manual script input handling
+  const manualScriptInput = document.getElementById('manualScriptInput');
+  const wordCountDisplay = document.getElementById('wordCount');
+  const useManualScriptBtn = document.getElementById('useManualScript');
+
+  manualScriptInput.addEventListener('input', (e) => {
+    const text = e.target.value;
+    const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+    wordCountDisplay.textContent = `${wordCount} words`;
+    
+    useManualScriptBtn.disabled = wordCount === 0;
+  });
+
+  useManualScriptBtn.addEventListener('click', () => {
+    const script = manualScriptInput.value.trim();
+    if (script) {
+      proceedWithScript(script, 'manual');
+    }
+  });
+
   function checkEnableGenerate() {
     const generateButtons = document.querySelectorAll('.generate-btn');
     if (selectedDuration && selectedAspectRatio && selectedStyle) {
@@ -273,17 +342,65 @@ declare global {
     }
   }
 
-  window.generateScript = async function(templateId, prompt) {
+  function hideError() {
+    document.getElementById('errorMessage').classList.add('hidden');
+  }
+
+  function showError(message, type = 'error', actions = []) {
+    const errorDiv = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    const errorActions = document.getElementById('errorActions');
+    
+    errorText.textContent = message;
+    
+    // Clear previous actions
+    errorActions.innerHTML = '';
+    
+    // Add action buttons if provided
+    if (actions.length > 0) {
+      const actionButtons = actions.map(action => 
+        `<button onclick="${action.handler}" class="mr-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">${action.label}</button>`
+      ).join('');
+      errorActions.innerHTML = actionButtons;
+    }
+    
+    errorDiv.classList.remove('hidden');
+    errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  window.handleTemplateClick = function(templateId, prompt) {
     if (!selectedDuration || !selectedAspectRatio || !selectedStyle) {
-      alert('Please select duration, aspect ratio, and art style first');
+      showError('Please select duration, aspect ratio, and art style first');
       return;
     }
 
+    hideError();
+
+    if (templateId === 'manual') {
+      // Show manual script input section
+      document.getElementById('manualScriptSection').classList.remove('hidden');
+      document.getElementById('manualScriptSection').scrollIntoView({ behavior: 'smooth' });
+      manualScriptInput.focus();
+      return;
+    }
+
+    generateScript(templateId, prompt);
+  }
+
+  window.generateScript = async function(templateId, prompt) {
     // Show loading state
     const button = document.querySelector(`button[data-template-id="${templateId}"]`);
     if (button) {
       button.disabled = true;
-      button.textContent = 'Generating...';
+      button.innerHTML = `
+        <div class="flex items-center justify-center">
+          <svg class="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Generating...
+        </div>
+      `;
     }
 
     try {
@@ -304,18 +421,37 @@ declare global {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        throw new Error(`API Error: ${response.status} - ${errorText}`);
-      }
 
       const data = await response.json();
       console.log('Received response:', data);
 
-      if (!data.success) {
+      if (!response.ok || !data.success) {
+        let errorActions = [];
+        
+        if (data.errorType === 'quota_exceeded') {
+          errorActions = [
+            {
+              label: 'Enter Script Manually',
+              handler: 'showManualInput()'
+            },
+            {
+              label: 'Check OpenAI Billing',
+              handler: 'window.open("https://platform.openai.com/account/billing", "_blank")'
+            }
+          ];
+        } else if (data.errorType === 'rate_limit') {
+          errorActions = [
+            {
+              label: 'Try Again',
+              handler: `generateScript('${templateId}', '${prompt}')`
+            },
+            {
+              label: 'Enter Script Manually',
+              handler: 'showManualInput()'
+            }
+          ];
+        }
+        
         throw new Error(data.error || 'Failed to generate script');
       }
 
@@ -323,44 +459,37 @@ declare global {
         throw new Error('No script content received from API');
       }
 
-      // Store generated script and selected parameters
-      localStorage.setItem('generatedScript', data.script);
-      localStorage.setItem('selectedStyle', selectedStyle);
-      
-      console.log('Script stored in localStorage:', data.script.substring(0, 100) + '...');
-      
-      // Redirect to voice generation with parameters
-      window.location.href = `/voice-generation?template=${templateId}&duration=${selectedDuration}&aspectRatio=${selectedAspectRatio}&style=${selectedStyle}`;
+      proceedWithScript(data.script, templateId);
 
     } catch (error) {
       console.error('Error in generateScript:', error);
-      alert('Failed to generate script: ' + error.message);
+      showError(error.message, 'error', error.errorActions || []);
+    } finally {
+      // Reset button state
       if (button) {
         button.disabled = false;
         button.textContent = 'Generate Script';
+        checkEnableGenerate();
       }
     }
   }
 
-  // Helper function to format prompts based on template type
-  function formatPromptForTemplate(templateId, basePrompt) {
-    const templateEnhancements = {
-      'custom': 'Create a custom video script that is engaging and memorable. Focus on: ',
-      'random': 'Generate a unique and creative story that surprises and entertains. Theme: ',
-      'travel': 'Create an inspiring travel narrative that captures the essence of exploration. Focus on: ',
-      'what-if': 'Explore a fascinating hypothetical scenario that makes people think. Consider: ',
-      'scary': 'Create a spine-chilling story with psychological suspense. Setting: ',
-      'bedtime': 'Craft a soothing and imaginative bedtime story that helps relaxation. Story about: ',
-      'history': 'Share a fascinating historical tale that surprises and educates. Topic: ',
-      'urban-legends': 'Tell an intriguing urban legend that captures imagination. Focus on: ',
-      'motivational': 'Create an inspiring message that motivates and energizes. Theme: ',
-      'fun-facts': 'Share mind-blowing facts that surprise and educate. Subject: ',
-      'jokes': 'Craft a clever and entertaining long-form joke. Topic: ',
-      'life-tips': 'Share a practical and valuable life hack. Area: '
-    };
+  function proceedWithScript(script, templateId) {
+    // Store generated script and selected parameters
+    localStorage.setItem('generatedScript', script);
+    localStorage.setItem('selectedStyle', selectedStyle);
+    
+    console.log('Script stored in localStorage:', script.substring(0, 100) + '...');
+    
+    // Redirect to voice selection page with parameters
+    window.location.href = `/voice-selection?template=${templateId}&duration=${selectedDuration}&aspectRatio=${selectedAspectRatio}&style=${selectedStyle}&script=${encodeURIComponent(script)}`;
+  }
 
-    const enhancement = templateEnhancements[templateId] || '';
-    return `${enhancement}${basePrompt}`;
+  window.showManualInput = function() {
+    hideError();
+    document.getElementById('manualScriptSection').classList.remove('hidden');
+    document.getElementById('manualScriptSection').scrollIntoView({ behavior: 'smooth' });
+    manualScriptInput.focus();
   }
 
   // Test configuration button
@@ -417,5 +546,20 @@ declare global {
 
   .generate-btn:disabled {
     @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* Smooth animations */
+  * {
+    transition-property: transform, opacity, background-color, border-color, color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+
+  /* Focus styles for accessibility */
+  button:focus,
+  select:focus,
+  textarea:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
   }
 </style> 

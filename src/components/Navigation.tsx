@@ -5,59 +5,63 @@ export const Navigation: React.FC = () => {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        className="lg:hidden fixed top-4 right-4 z-50 p-2 rounded-lg bg-white border border-gray-200"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
-      >
-        {isMobileMenuOpen ? '✕' : '☰'}
-      </button>
+      {/* Top Navigation Bar */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex items-center">
+              <a href="/" className="flex items-center">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">
+                  Viroshort
+                </h1>
+              </a>
+            </div>
 
-      {/* Navigation Sidebar */}
-      <div className="fixed top-0 left-0 bottom-0 w-64 bg-white border-r border-gray-200 z-40">
-        <div className="flex flex-col h-full p-6">
-          {/* Logo */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
-              Viroshort
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">Create amazing videos</p>
-          </div>
-
-          {/* Main Navigation */}
-          <nav className="flex-1">
-            <ul className="space-y-2">
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-8">
               <NavItem href="/" icon="🏠" label="Home" />
               <NavItem href="/guides" icon="📚" label="Guides" />
               <NavItem href="/billing" icon="💳" label="Billing" />
-            </ul>
-          </nav>
-
-          {/* Account Section */}
-          <div className="border-t border-gray-200 pt-4">
-            <a href="/profile" className="block">
-              <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+              
+              {/* User Profile */}
+              <a href="/profile" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">
                   👤
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">User Profile</p>
-                  <p className="text-xs text-gray-600">Manage settings</p>
-                </div>
-              </div>
-            </a>
+                <span className="text-sm font-medium text-gray-700">Profile</span>
+              </a>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isMobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-gray-200 bg-white">
+            <div className="px-4 py-3 space-y-1">
+              <MobileNavItem href="/" icon="🏠" label="Home" />
+              <MobileNavItem href="/guides" icon="📚" label="Guides" />
+              <MobileNavItem href="/billing" icon="💳" label="Billing" />
+              <MobileNavItem href="/profile" icon="👤" label="Profile" />
+            </div>
+          </div>
+        )}
+      </nav>
     </>
   );
 };
@@ -70,17 +74,29 @@ interface NavItemProps {
 }
 
 const NavItem: React.FC<NavItemProps> = ({ href, icon, label, isActive }) => (
-  <li>
-    <a
-      href={href}
-      className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-        isActive
-          ? 'bg-blue-50 text-blue-600'
-          : 'text-gray-700 hover:bg-gray-50'
-      }`}
-    >
-      <span className="text-xl">{icon}</span>
-      <span className="font-medium">{label}</span>
-    </a>
-  </li>
+  <a
+    href={href}
+    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+      isActive
+        ? 'bg-blue-50 text-blue-600'
+        : 'text-gray-700 hover:bg-gray-50'
+    }`}
+  >
+    <span className="text-lg">{icon}</span>
+    <span>{label}</span>
+  </a>
+);
+
+const MobileNavItem: React.FC<NavItemProps> = ({ href, icon, label, isActive }) => (
+  <a
+    href={href}
+    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+      isActive
+        ? 'bg-blue-50 text-blue-600'
+        : 'text-gray-700 hover:bg-gray-50'
+    }`}
+  >
+    <span className="text-xl">{icon}</span>
+    <span className="font-medium">{label}</span>
+  </a>
 ); 
