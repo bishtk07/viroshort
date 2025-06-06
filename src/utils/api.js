@@ -23,21 +23,26 @@ export async function generateVideo(prompt, options = {}) {
   }
 }
 
-export async function generateAudio(text, voice = 'alloy') {
+export async function generateAudio(script, voiceId) {
   try {
-    const response = await fetch('/api/audio', {
+    if (!script || !voiceId) {
+      throw new Error('Script and voice ID are required');
+    }
+
+    const response = await fetch('/api/generate-audio', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ 
-        text,
-        voice 
+        script,
+        voiceId 
       })
     });
 
     if (!response.ok) {
-      throw new Error(`Audio API call failed: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(`Audio API call failed: ${response.status} - ${errorData.error || 'Unknown error'}`);
     }
 
     return await response.json();
