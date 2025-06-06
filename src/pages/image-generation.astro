@@ -1,0 +1,407 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// Get URL parameters
+const searchParams = Astro.url.searchParams;
+const template = searchParams.get('template');
+const duration = searchParams.get('duration');
+const aspectRatio = searchParams.get('aspectRatio');
+const styleFromUrl = searchParams.get('style');
+
+// Get style from URL or localStorage
+const style = styleFromUrl || localStorage.getItem('selectedStyle') || 'photorealism';
+
+console.log('[Image Generation Page] Parameters:', {
+  template,
+  duration,
+  aspectRatio,
+  style
+});
+
+// Validate required parameters
+if (!template || !duration || !aspectRatio || !style) {
+  console.error('[Image Generation Page] Missing parameters:', {
+    template,
+    duration,
+    aspectRatio,
+    style
+  });
+  return Astro.redirect('/?error=Missing required parameters');
+}
+
+// Validate that we're using a style the API supports
+const VALID_STYLES = [
+  'viroshorts', 'lego', 'comic-book', 'disney-toon', 'studio-chili', 
+  'childrens-book', 'photo-realism', 'minecraft', 'watchmen', 'watercolor', 
+  'expressionism', 'charcoal', 'gtav', 'anime'
+];
+
+if (!VALID_STYLES.includes(style)) {
+  console.warn(`[Image Generation Page] Invalid style '${style}', falling back to photorealism`);
+  style = 'photorealism';
+}
+---
+
+<Layout title="Generate Images">
+  <main class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Generating Images</h1>
+        <p class="text-xl text-gray-600">Creating visuals for your story (Style: {style})</p>
+      </div>
+
+      <!-- Progress Steps -->
+      <div class="max-w-3xl mx-auto mb-12">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center">
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">✓</div>
+            <div class="h-1 w-16 bg-blue-500"></div>
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">✓</div>
+            <div class="h-1 w-16 bg-blue-500"></div>
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">✓</div>
+            <div class="h-1 w-16 bg-blue-500"></div>
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">4</div>
+          </div>
+          <div class="text-sm text-gray-600">
+            <span>Template → Script → Voice → Images → Video</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audio Preview Section -->
+      <div class="max-w-3xl mx-auto mb-8 bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Generated Audio</h2>
+        <audio id="audioPlayer" controls class="w-full">
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+
+      <!-- Image Generation Status -->
+      <div id="imageStatus" class="max-w-3xl mx-auto mb-8">
+        <div class="flex flex-col items-center justify-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <span class="mt-4 text-gray-600">Initializing image generation...</span>
+          
+          <!-- Analysis Display -->
+          <div id="analysisDisplay" class="w-full mt-8 bg-gray-50 rounded-lg p-6 hidden">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Segment Analysis</h3>
+            <div class="space-y-4">
+              <div id="currentScript" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Script Segment</h4>
+                <p class="text-gray-600 italic"></p>
+              </div>
+              <div id="emotions" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Emotions & Mood</h4>
+                <p class="text-gray-600"></p>
+              </div>
+              <div id="visualElements" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Visual Elements</h4>
+                <p class="text-gray-600"></p>
+              </div>
+              <div id="composition" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Composition</h4>
+                <p class="text-gray-600"></p>
+              </div>
+              <div id="colorPalette" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Color Palette</h4>
+                <p class="text-gray-600"></p>
+              </div>
+              <div id="emphasis" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Emphasis</h4>
+                <p class="text-gray-600"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Image Grid -->
+      <div id="imageGrid" class="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6" style="display: none;"></div>
+
+      <!-- Continue Section -->
+      <div id="continueSection" class="max-w-3xl mx-auto mt-8 flex justify-between items-center" style="display: none;">
+        <button
+          onclick="window.history.back()"
+          class="px-4 py-2 text-gray-600 hover:text-gray-800"
+        >
+          Go Back
+        </button>
+        <button
+          id="continueButton"
+          onclick="window.location.href = '/video-generation' + window.location.search"
+          class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled
+        >
+          Continue to Video Generation
+        </button>
+      </div>
+
+      <!-- Error Display -->
+      <div id="errorDisplay" class="max-w-3xl mx-auto mt-8" style="display: none;">
+        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm leading-5 font-medium text-red-800" id="errorTitle">
+                Error
+              </h3>
+              <div class="mt-2 text-sm leading-5 text-red-700" id="errorMessage">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 text-center">
+          <button
+            onclick="generateImages()"
+            class="bg-red-100 text-red-700 px-4 py-2 rounded hover:bg-red-200"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script define:vars={{ style, duration, aspectRatio }}>
+  // Get script from localStorage
+  const script = localStorage.getItem('generatedScript');
+  if (!script) {
+    window.location.href = '/?error=No script found for image generation';
+  }
+
+  // Initialize audio player with stored audio URL
+  const audioUrl = localStorage.getItem('generatedAudioUrl');
+  if (!audioUrl) {
+    window.location.href = '/?error=No audio generated for image generation';
+  }
+
+  const audioPlayer = document.getElementById('audioPlayer');
+  if (audioPlayer) {
+    audioPlayer.src = audioUrl;
+  }
+
+  // Verify we have the actual audio duration
+  const actualDuration = localStorage.getItem('actualAudioDuration');
+  if (!actualDuration) {
+    window.location.href = '/?error=Audio duration not available';
+  }
+
+  // Store generated images
+  let generatedImages = [];
+  let isGenerating = false;
+  let eventSource = null;
+  let retryCount = 0;
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 1000;
+
+  // Update status message
+  function updateStatus(message) {
+    const statusText = document.querySelector('#imageStatus span');
+    if (statusText) {
+      statusText.textContent = message;
+    }
+  }
+
+  // Show error message
+  function showError(title, message) {
+    const errorDisplay = document.getElementById('errorDisplay');
+    const errorTitle = document.getElementById('errorTitle');
+    const errorMessage = document.getElementById('errorMessage');
+    const imageStatus = document.getElementById('imageStatus');
+    
+    if (errorDisplay && errorTitle && errorMessage) {
+      errorTitle.textContent = title;
+      errorMessage.textContent = message;
+      errorDisplay.style.display = 'block';
+      imageStatus.style.display = 'none';
+    }
+  }
+
+  // Handle SSE connection
+  function setupEventSource() {
+    if (eventSource) {
+      eventSource.close();
+    }
+
+    eventSource = new EventSource(`/api/generate-images-progress?id=${Date.now()}`);
+    
+    eventSource.onopen = () => {
+      console.log('SSE connection established');
+      retryCount = 0;
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'connected') {
+          console.log('SSE connection confirmed:', data.message);
+        } else if (data.type === 'heartbeat') {
+          console.log('Heartbeat received:', new Date(data.timestamp));
+        } else if (data.type === 'analysis') {
+          // Show analysis results
+          const analysisDisplay = document.getElementById('analysisDisplay');
+          analysisDisplay.classList.remove('hidden');
+          document.querySelector('#currentScript p').textContent = data.scriptSegment;
+          document.querySelector('#emotions p').textContent = data.analysis.emotions.join(', ');
+          document.querySelector('#visualElements p').textContent = data.analysis.visualElements.join(', ');
+          document.querySelector('#composition p').textContent = data.analysis.composition;
+          document.querySelector('#colorPalette p').textContent = data.analysis.colorPalette.join(', ');
+          document.querySelector('#emphasis p').textContent = data.analysis.emphasis;
+          updateStatus(`Analyzing script segment ${data.currentIndex + 1}...`);
+        } else if (data.type === 'generation') {
+          updateStatus(`Generating image ${data.currentIndex + 1}...`);
+        } else if (data.type === 'complete') {
+          closeEventSource();
+          handleGenerationComplete(data.images);
+        }
+      } catch (error) {
+        console.error('Error processing SSE message:', error);
+      }
+    };
+    
+    eventSource.onerror = (error) => {
+      console.error('EventSource error:', error);
+      eventSource.close();
+      eventSource = null;
+
+      if (retryCount < MAX_RETRIES) {
+        retryCount++;
+        console.log(`Retrying SSE connection (attempt ${retryCount}/${MAX_RETRIES})...`);
+        setTimeout(setupEventSource, RETRY_DELAY * retryCount);
+      } else {
+        showError('Connection Error', 'Failed to maintain connection. Proceeding with direct image generation.');
+        proceedWithDirectGeneration();
+      }
+    };
+  }
+
+  function closeEventSource() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  }
+
+  // Generate images
+  async function generateImages() {
+    if (isGenerating) return;
+    
+    try {
+      isGenerating = true;
+      const imageStatus = document.getElementById('imageStatus');
+      const imageGrid = document.getElementById('imageGrid');
+      const continueSection = document.getElementById('continueSection');
+      const errorDisplay = document.getElementById('errorDisplay');
+      const analysisDisplay = document.getElementById('analysisDisplay');
+      
+      // Reset UI
+      imageStatus.style.display = 'block';
+      imageGrid.style.display = 'none';
+      imageGrid.innerHTML = '';
+      continueSection.style.display = 'none';
+      errorDisplay.style.display = 'none';
+      analysisDisplay.classList.add('hidden');
+      
+      const parsedDuration = parseInt(actualDuration);
+      const targetImageCount = Math.ceil(parsedDuration / 3.5);
+      updateStatus(`Starting image generation (${targetImageCount} images for ${parsedDuration}s audio)...`);
+
+      // Start SSE connection
+      setupEventSource();
+
+      // Start image generation
+      const response = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script,
+          style,
+          audioDuration: parsedDuration,
+          aspectRatio
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'API error during image generation');
+      }
+
+      const data = await response.json();
+      handleGenerationComplete(data.images);
+    } catch (error) {
+      console.error('Error in generateImages function:', error);
+      showError('Image Generation Failed', error.message);
+      closeEventSource();
+    } finally {
+      isGenerating = false;
+    }
+  }
+
+  function handleGenerationComplete(images) {
+    const imageGrid = document.getElementById('imageGrid');
+    const continueSection = document.getElementById('continueSection');
+    const analysisDisplay = document.getElementById('analysisDisplay');
+    const imageStatus = document.getElementById('imageStatus');
+    
+    // Store generated images
+    generatedImages = images;
+    localStorage.setItem('generatedImages', JSON.stringify(generatedImages));
+
+    // Hide analysis display and status
+    analysisDisplay.classList.add('hidden');
+    imageStatus.style.display = 'none';
+
+    // Display generated images
+    imageGrid.style.display = 'grid';
+    imageGrid.innerHTML = ''; // Clear any existing images
+
+    // Create and append images with loading state
+    images.forEach((imageUrl, index) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'relative';
+      
+      const img = document.createElement('img');
+      img.className = 'w-full h-auto rounded-lg shadow-sm opacity-0 transition-opacity duration-300';
+      img.alt = `Generated image ${index + 1}`;
+      
+      wrapper.innerHTML = `
+        <div class="absolute inset-0 flex items-center justify-center bg-gray-200 rounded-lg">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      `;
+      
+      img.onload = () => {
+        img.classList.add('opacity-100');
+        wrapper.innerHTML = '';
+        wrapper.appendChild(img);
+      };
+      
+      img.onerror = () => {
+        wrapper.innerHTML = `
+          <div class="absolute inset-0 flex items-center justify-center bg-red-100 rounded-lg p-2">
+            <p class="text-red-500 text-xs text-center">Failed to load image</p>
+          </div>
+        `;
+      };
+      
+      img.src = imageUrl;
+      imageGrid.appendChild(wrapper);
+    });
+
+    continueSection.style.display = 'block';
+    document.getElementById('continueButton').disabled = false;
+  }
+
+  // Start the generation process automatically
+  generateImages();
+</script>
+
+<style>
+  /* Add any specific styles if needed */
+</style> 

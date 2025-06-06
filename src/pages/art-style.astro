@@ -1,0 +1,176 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+interface ArtStyle {
+  id: string;
+  name: string;
+  description: string;
+  preview: string;
+}
+
+const artStyles: ArtStyle[] = [
+  {
+    id: 'viroshorts',
+    name: 'Viroshorts',
+    description: 'Cinematic, high-quality visuals perfect for viral content',
+    preview: '/art-styles/viroshorts.jpg'
+  },
+  {
+    id: 'lego',
+    name: 'Lego',
+    description: 'Everything in charming Lego brick style',
+    preview: '/art-styles/lego.jpg'
+  },
+  {
+    id: 'comic',
+    name: 'Comic Book',
+    description: 'Classic comic book style with bold colors and lines',
+    preview: '/art-styles/comic.jpg'
+  },
+  {
+    id: 'disney',
+    name: 'Disney Toon',
+    description: 'Magical Disney-inspired animation style',
+    preview: '/art-styles/disney.jpg'
+  },
+  {
+    id: 'studio-chili',
+    name: 'Studio Chili',
+    description: 'Unique and vibrant illustration style',
+    preview: '/art-styles/studio-chili.jpg'
+  },
+  {
+    id: 'childrens-book',
+    name: 'Children\'s Book',
+    description: 'Warm and whimsical children\'s book illustrations',
+    preview: '/art-styles/childrens.jpg'
+  },
+  {
+    id: 'photorealism',
+    name: 'Photo Realism',
+    description: 'Highly detailed, realistic photographic style',
+    preview: '/art-styles/photorealism.jpg'
+  },
+  {
+    id: 'minecraft',
+    name: 'Minecraft',
+    description: 'Blocky, pixelated Minecraft aesthetic',
+    preview: '/art-styles/minecraft.jpg'
+  },
+  {
+    id: 'watchmen',
+    name: 'Watchmen',
+    description: 'Dark and gritty comic book style',
+    preview: '/art-styles/watchmen.jpg'
+  },
+  {
+    id: 'watercolor',
+    name: 'Watercolor',
+    description: 'Soft and flowing watercolor painting style',
+    preview: '/art-styles/watercolor.jpg'
+  },
+  {
+    id: 'expressionism',
+    name: 'Expressionism',
+    description: 'Bold and emotional artistic expression',
+    preview: '/art-styles/expressionism.jpg'
+  },
+  {
+    id: 'charcoal',
+    name: 'Charcoal',
+    description: 'Dramatic black and white charcoal drawing style',
+    preview: '/art-styles/charcoal.jpg'
+  },
+  {
+    id: 'gtav',
+    name: 'GTAV',
+    description: 'Modern video game visual style',
+    preview: '/art-styles/gtav.jpg'
+  },
+  {
+    id: 'anime',
+    name: 'Anime',
+    description: 'Japanese anime and manga inspired style',
+    preview: '/art-styles/anime.jpg'
+  }
+];
+
+// Get URL parameters
+const searchParams = Astro.url.searchParams;
+const template = searchParams.get('template');
+const duration = searchParams.get('duration');
+const script = searchParams.get('script');
+
+// Redirect if missing parameters
+if (!template || !duration || !script) {
+  return Astro.redirect('/?error=missing_parameters');
+}
+---
+
+<Layout title="Select Art Style">
+  <main class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Select Art Style</h1>
+        <p class="text-xl text-gray-600">Choose the visual style for your video</p>
+      </div>
+
+      <!-- Progress Steps -->
+      <div class="max-w-3xl mx-auto mb-12">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center">
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">✓</div>
+            <div class="h-1 w-16 bg-blue-500"></div>
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">2</div>
+            <div class="h-1 w-16 bg-gray-300"></div>
+            <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center">3</div>
+            <div class="h-1 w-16 bg-gray-300"></div>
+            <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center">4</div>
+          </div>
+          <div class="text-sm text-gray-600">
+            <span>Script → Art Style → Audio → Video</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated Script Preview -->
+      <div class="max-w-3xl mx-auto mb-12 bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Generated Script</h2>
+        <div class="bg-gray-50 rounded p-4">
+          <p class="whitespace-pre-wrap text-gray-700">{script}</p>
+        </div>
+      </div>
+
+      <!-- Art Style Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {artStyles.map(style => (
+          <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            <img
+              src={style.preview}
+              alt={`${style.name} style preview`}
+              class="w-full h-48 object-cover"
+            />
+            <div class="p-6">
+              <h3 class="text-xl font-semibold text-gray-900 mb-2">{style.name}</h3>
+              <p class="text-gray-600 mb-4">{style.description}</p>
+              <button
+                onclick={`selectStyle('${style.id}')`}
+                class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Select Style
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  window.selectStyle = function(styleId) {
+    const params = new URLSearchParams(window.location.search);
+    params.append('style', styleId);
+    window.location.href = `/voice-selection?${params.toString()}`;
+  }
+</script> 

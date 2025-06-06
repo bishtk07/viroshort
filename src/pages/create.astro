@@ -1,0 +1,55 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { TemplateSelector } from '../components/TemplateSelector';
+import { supabase } from '../lib/supabase';
+
+// Check if user is authenticated
+const { data: { session }, error: authError } = await supabase.auth.getSession();
+
+// If not authenticated, redirect to login
+if (!session) {
+  return Astro.redirect('/login?redirect=' + encodeURIComponent(Astro.url.pathname));
+}
+---
+
+<Layout title="Create Video - Wava">
+  <main class="min-h-screen bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 py-12">
+      <h1 class="text-4xl font-bold text-gray-900 mb-8 text-center">Create Your Video</h1>
+      
+      <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <TemplateSelector client:load />
+      </div>
+      
+      <div class="mt-8 text-center text-sm text-gray-600">
+        <p>Need help? Check out our <a href="/guides" class="text-blue-600 hover:text-blue-800">guides</a> or <a href="/tools" class="text-blue-600 hover:text-blue-800">tools</a>.</p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  // Handle authentication on the client side
+  import { supabase } from '../lib/supabase';
+  
+  async function checkAuth() {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (!session) {
+      const currentPath = window.location.pathname;
+      window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+    }
+  }
+  
+  // Listen for auth state changes
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      const currentPath = window.location.pathname;
+      window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+    }
+  });
+  
+  // Run auth check when page loads
+  checkAuth();
+</script> 
+</script> 

@@ -1,0 +1,345 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const templates = [
+  {
+    id: 'custom',
+    name: 'Custom Prompt',
+    description: 'Create a video from your own custom script or prompt.',
+    icon: '💡',
+    prompt: 'Create a custom video script based on user input.'
+  },
+  {
+    id: 'random',
+    name: 'Random AI Story',
+    description: 'Generate a completely unique and engaging story.',
+    icon: '🎲',
+    prompt: 'Create an engaging and unique story that captures attention from the first second. Make it creative and unexpected.'
+  },
+  {
+    id: 'travel',
+    name: 'Travel Destinations',
+    description: 'Create beautiful videos about travel destinations and experiences.',
+    icon: '✈️',
+    prompt: 'Create an engaging travel video script that showcases the beauty and excitement of exploring new destinations.'
+  },
+  {
+    id: 'what-if',
+    name: 'What If?',
+    description: 'Explore hypothetical scenarios and their fascinating implications.',
+    icon: '🤔',
+    prompt: 'Create an intriguing what-if scenario that makes viewers think and wonder about possibilities.'
+  },
+  {
+    id: 'scary',
+    name: 'Scary Stories',
+    description: 'Generate viral scary stories with psychological horror.',
+    icon: '👻',
+    prompt: 'Create a spine-chilling story that builds psychological tension and ends with an unexpected twist.'
+  },
+  {
+    id: 'bedtime',
+    name: 'Bedtime Stories',
+    description: 'Soothing and imaginative stories perfect for bedtime.',
+    icon: '🌙',
+    prompt: 'Create a soothing and imaginative bedtime story that helps listeners relax and dream.'
+  },
+  {
+    id: 'history',
+    name: 'Interesting History',
+    description: 'Fascinating historical events and little-known stories.',
+    icon: '📚',
+    prompt: 'Create an engaging historical narrative about a fascinating but lesser-known event or person from history.'
+  },
+  {
+    id: 'urban-legends',
+    name: 'Urban Legends',
+    description: 'Explore intriguing urban legends and modern myths.',
+    icon: '🏙️',
+    prompt: 'Create an engaging retelling of an urban legend or modern myth, building intrigue and mystery.'
+  },
+  {
+    id: 'motivational',
+    name: 'Motivational',
+    description: 'Inspiring stories and motivational content.',
+    icon: '💪',
+    prompt: 'Create an inspiring and motivational story that energizes and encourages positive action.'
+  },
+  {
+    id: 'fun-facts',
+    name: 'Fun Facts',
+    description: 'Interesting and surprising facts that captivate viewers.',
+    icon: '🎯',
+    prompt: 'Create an engaging script about mind-blowing facts that surprise and educate.'
+  },
+  {
+    id: 'jokes',
+    name: 'Long Form Jokes',
+    description: 'Extended format jokes and humorous stories.',
+    icon: '😄',
+    prompt: 'Create a clever long-form joke or humorous story with a satisfying punchline.'
+  },
+  {
+    id: 'life-tips',
+    name: 'Life Pro Tips',
+    description: 'Useful life hacks and practical tips.',
+    icon: '💡',
+    prompt: 'Create a practical and useful life hack or tip that provides real value.'
+  }
+];
+
+const durations = [
+  { value: '30', label: '30 seconds' },
+  { value: '60', label: '60 seconds' },
+  { value: '90', label: '90 seconds' }
+];
+
+const aspectRatios = [
+  { value: '9:16', label: 'Vertical (9:16)', description: 'Best for TikTok, Instagram Reels, YouTube Shorts' },
+  { value: '16:9', label: 'Horizontal (16:9)', description: 'Best for YouTube, Desktop viewing' },
+  { value: '1:1', label: 'Square (1:1)', description: 'Best for Instagram, Facebook' }
+];
+
+declare global {
+  interface Window {
+    templates: typeof templates;
+  }
+}
+---
+
+<Layout title="Create Amazing Videos with AI">
+  <main class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Create Amazing Videos with AI</h1>
+        <p class="text-xl text-gray-600">Transform your ideas into engaging videos using AI-powered tools. Choose from our templates or create your own custom content.</p>
+      </div>
+
+      <!-- Duration Selection -->
+      <div class="max-w-3xl mx-auto mb-12">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Select Duration</h2>
+        <div class="flex gap-4 justify-center">
+          {durations.map(({ value, label }) => (
+            <button 
+              data-duration={value}
+              class="duration-btn px-6 py-3 rounded-lg border-2 border-blue-500 text-blue-500 font-medium hover:bg-blue-50 transition-colors"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <!-- Aspect Ratio Selection -->
+      <div class="max-w-3xl mx-auto mb-12">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Select Aspect Ratio</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {aspectRatios.map(({ value, label, description }) => (
+            <button 
+              data-aspect-ratio={value}
+              class="aspect-ratio-btn p-4 rounded-lg border-2 border-blue-500 text-blue-500 font-medium hover:bg-blue-50 transition-colors text-center"
+            >
+              <div class="font-semibold">{label}</div>
+              <div class="text-sm text-gray-600 mt-1">{description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <!-- Art Style Selection -->
+      <div class="max-w-3xl mx-auto mb-12">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Select Art Style</h2>
+        <div class="relative">
+          <select id="artStyleSelect" class="w-full p-4 rounded-lg border-2 border-blue-500 text-gray-900 font-medium bg-white appearance-none cursor-pointer">
+            <option value="viroshorts">Viroshorts - Cinematic 8K Ultra HD</option>
+            <option value="lego">LEGO - LEGO brick style</option>
+            <option value="comic-book">Comic Book - Bold comic style</option>
+            <option value="disney-toon">Disney Toon - Classic Disney style</option>
+            <option value="studio-chili">Studio Chili - Modern illustration</option>
+            <option value="childrens-book">Children's Book - Storybook art</option>
+            <option value="photo-realism">Photo Realism - Ultra-realistic photos</option>
+            <option value="minecraft">Minecraft - Voxel game style</option>
+            <option value="watchmen">Watchmen - Gritty noir comic</option>
+            <option value="watercolor">Watercolor - Traditional painting</option>
+            <option value="expressionism">Expressionism - Bold emotional art</option>
+            <option value="charcoal">Charcoal - Dramatic B&W</option>
+            <option value="gtav">GTAV - Modern game graphics</option>
+            <option value="anime">Anime - Japanese animation</option>
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-700">
+            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Template Grid -->
+      <div class="max-w-7xl mx-auto">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-8">Choose a Template</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {templates.map(template => (
+            <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+              <div class="p-6">
+                <div class="text-3xl mb-4">{template.icon}</div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">{template.name}</h3>
+                <p class="text-gray-600 mb-4">{template.description}</p>
+                <button 
+                  data-template-id={template.id}
+                  data-prompt={template.prompt}
+                  onclick={`generateScript('${template.id}', '${template.prompt}')`}
+                  class="generate-btn w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  Generate Script
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  let selectedDuration = null;
+  let selectedAspectRatio = null;
+  let selectedStyle = 'viroshorts'; // Default style
+
+  // Duration selection
+  document.querySelectorAll('.duration-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.duration-btn').forEach(b => {
+        b.classList.remove('bg-blue-500', 'text-white');
+        b.classList.add('text-blue-500');
+      });
+      
+      btn.classList.remove('text-blue-500');
+      btn.classList.add('bg-blue-500', 'text-white');
+      
+      selectedDuration = btn.dataset.duration;
+      checkEnableGenerate();
+    });
+  });
+
+  // Aspect ratio selection
+  document.querySelectorAll('.aspect-ratio-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.aspect-ratio-btn').forEach(b => {
+        b.classList.remove('bg-blue-500', 'text-white');
+        b.classList.add('text-blue-500');
+      });
+      
+      btn.classList.remove('text-blue-500');
+      btn.classList.add('bg-blue-500', 'text-white');
+      
+      selectedAspectRatio = btn.dataset.aspectRatio;
+      checkEnableGenerate();
+    });
+  });
+
+  // Art style selection
+  const artStyleSelect = document.getElementById('artStyleSelect');
+  artStyleSelect.addEventListener('change', (e) => {
+    selectedStyle = e.target.value;
+    localStorage.setItem('selectedStyle', selectedStyle);
+    checkEnableGenerate();
+  });
+
+  function checkEnableGenerate() {
+    const generateButtons = document.querySelectorAll('.generate-btn');
+    if (selectedDuration && selectedAspectRatio && selectedStyle) {
+      generateButtons.forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      });
+    } else {
+      generateButtons.forEach(btn => {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+      });
+    }
+  }
+
+  window.generateScript = async function(templateId, prompt) {
+    if (!selectedDuration || !selectedAspectRatio || !selectedStyle) {
+      alert('Please select duration, aspect ratio, and art style first');
+      return;
+    }
+
+    // Show loading state
+    const button = document.querySelector(`button[data-template-id="${templateId}"]`);
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Generating...';
+    }
+
+    try {
+      console.log('Sending request with:', { prompt, duration: selectedDuration });
+      
+      const response = await fetch('/api/generate-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt,
+          duration: parseInt(selectedDuration),
+          template: templateId
+        })
+      });
+
+      const data = await response.json();
+      console.log('Received response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate script');
+      }
+
+      // Store generated script and selected parameters
+      localStorage.setItem('generatedScript', data.script);
+      localStorage.setItem('selectedStyle', selectedStyle);
+      
+      // Redirect to voice generation with parameters
+      window.location.href = `/voice-generation?template=${templateId}&duration=${selectedDuration}&aspectRatio=${selectedAspectRatio}&style=${selectedStyle}`;
+
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to generate script: ' + error.message);
+      if (button) {
+        button.disabled = false;
+        button.textContent = 'Generate Script';
+      }
+    }
+  }
+
+  // Helper function to format prompts based on template type
+  function formatPromptForTemplate(templateId, basePrompt) {
+    const templateEnhancements = {
+      'custom': 'Create a custom video script that is engaging and memorable. Focus on: ',
+      'random': 'Generate a unique and creative story that surprises and entertains. Theme: ',
+      'travel': 'Create an inspiring travel narrative that captures the essence of exploration. Focus on: ',
+      'what-if': 'Explore a fascinating hypothetical scenario that makes people think. Consider: ',
+      'scary': 'Create a spine-chilling story with psychological suspense. Setting: ',
+      'bedtime': 'Craft a soothing and imaginative bedtime story that helps relaxation. Story about: ',
+      'history': 'Share a fascinating historical tale that surprises and educates. Topic: ',
+      'urban-legends': 'Tell an intriguing urban legend that captures imagination. Focus on: ',
+      'motivational': 'Create an inspiring message that motivates and energizes. Theme: ',
+      'fun-facts': 'Share mind-blowing facts that surprise and educate. Subject: ',
+      'jokes': 'Craft a clever and entertaining long-form joke. Topic: ',
+      'life-tips': 'Share a practical and valuable life hack. Area: '
+    };
+
+    const enhancement = templateEnhancements[templateId] || '';
+    return `${enhancement}${basePrompt}`;
+  }
+</script>
+
+<style>
+  .duration-btn.selected {
+    @apply bg-blue-500 text-white;
+  }
+
+  .generate-btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+</style> 

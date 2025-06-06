@@ -1,0 +1,398 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// Get URL parameters
+const searchParams = Astro.url.searchParams;
+const template = searchParams.get('template');
+const duration = searchParams.get('duration');
+const aspectRatio = searchParams.get('aspectRatio');
+const script = searchParams.get('script');
+
+// Art style mapping that matches the backend API's styles
+const TEMPLATE_TO_STYLE_MAP = {
+  custom: 'photorealism',
+  random: 'studio-chili',
+  travel: 'watercolor',
+  'what-if': 'disney',
+  scary: 'watchmen',
+  bedtime: 'childrens-book',
+  history: 'photorealism',
+  'urban-legends': 'comic',
+  motivational: 'studio-chili',
+  'fun-facts': 'infographic',
+  jokes: 'anime',
+  'life-tips': 'viroshorts'
+};
+
+// Determine style based on template
+const style = TEMPLATE_TO_STYLE_MAP[template] || 'photorealism';
+
+console.log('Voice selection received params:', { template, duration, aspectRatio, script, style }); // Debug log
+
+// Redirect if missing parameters
+if (!template || !duration || !aspectRatio || !script) {
+  console.log('Missing required parameters, redirecting...'); // Debug log
+  return Astro.redirect('/?error=Missing required parameters');
+}
+---
+
+<Layout title="Select Voice">
+  <main class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Select a Voice</h1>
+        <p class="text-xl text-gray-600">Choose a voice for your story</p>
+      </div>
+
+      <!-- Script Editor Section -->
+      <div class="max-w-3xl mx-auto mb-8 bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Your Script</h2>
+        <div class="mb-4">
+          <textarea
+            id="scriptEditor"
+            class="w-full h-32 p-4 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Your script will appear here..."
+          ></textarea>
+        </div>
+        <div class="flex justify-end">
+          <button
+            id="updateScript"
+            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            Update Script
+          </button>
+        </div>
+      </div>
+
+      <!-- Voice Selection Section -->
+      <div class="max-w-3xl mx-auto">
+        <div class="bg-white rounded-lg shadow">
+          <div class="p-4">
+            <div class="flex space-x-4 mb-6">
+              <button
+                id="allVoicesBtn"
+                class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200"
+              >
+                All Voices
+              </button>
+              <button
+                id="premiumVoicesBtn"
+                class="px-4 py-2 text-gray-600 rounded-full hover:bg-gray-100"
+              >
+                Premium Voices
+              </button>
+            </div>
+
+            <div id="voiceGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Voice options will be populated here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audio Preview Section -->
+      <div id="audioPreviewSection" class="max-w-3xl mx-auto mt-8 bg-white rounded-lg shadow p-6 hidden">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Preview</h2>
+        <audio id="audioPreview" controls class="w-full mb-4"></audio>
+        <p id="generationStatus" class="text-gray-600 text-center"></p>
+        <div class="flex justify-between mt-4">
+          <button
+            onclick="window.history.back()"
+            class="px-4 py-2 text-gray-600 hover:text-gray-800"
+          >
+            Go Back
+          </button>
+          <button
+            id="continueButton"
+            class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400"
+            disabled
+          >
+            Continue to Image Generation
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script define:vars={{ style, template, duration, aspectRatio, script }}>
+  // Debug log
+  console.log('Voice selection params:', { template, duration, script, aspectRatio, style });
+
+  if (!template || !duration || !script || !aspectRatio) {
+    window.location.href = '/error?message=Missing required parameters';
+  }
+
+  let selectedVoice = null;
+  let audioPreview = null;
+
+  window.selectVoice = async function(voiceId) {
+    try {
+      selectedVoice = voiceId;
+      
+      // Update selected state for all voice cards
+      document.querySelectorAll('.voice-card').forEach(card => {
+        card.classList.remove('border-blue-500');
+        card.classList.add('border-gray-200');
+      });
+
+      // Update selected voice card
+      const selectedCard = document.getElementById(`voice-${voiceId}`);
+      if (selectedCard) {
+        selectedCard.classList.remove('border-gray-200');
+        selectedCard.classList.add('border-blue-500');
+      }
+
+      // Enable continue button
+      const continueBtn = document.getElementById('continueBtn');
+      if (continueBtn) {
+        continueBtn.disabled = false;
+        continueBtn.textContent = 'Generate Audio';
+      }
+
+      console.log('Voice selected:', voiceId);
+    } catch (error) {
+      console.error('Error selecting voice:', error);
+      alert('Failed to select voice. Please try again.');
+    }
+  }
+
+  window.generateAudioAndProceed = async function() {
+    if (!selectedVoice) {
+      alert('Please select a voice first');
+      return;
+    }
+
+    // Show loading state
+    const continueBtn = document.getElementById('continueBtn');
+    continueBtn.disabled = true;
+    continueBtn.textContent = 'Generating Audio...';
+
+    try {
+      console.log('Generating audio with params:', { text: script, voiceId: selectedVoice });
+
+      const response = await fetch('/api/generate-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: script,
+          voiceId: selectedVoice
+        })
+      });
+
+      const data = await response.json();
+      console.log('Audio generation response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Audio generation failed');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Audio generation failed');
+      }
+
+      if (!data.audioUrl) {
+        throw new Error('No audio URL received');
+      }
+
+      // Show audio preview
+      const audioPreviewSection = document.getElementById('audioPreviewSection');
+      const audioPlayer = document.getElementById('generatedAudioPlayer');
+      audioPreviewSection.classList.remove('hidden');
+      audioPlayer.src = data.audioUrl;
+
+      // Wait for audio metadata to load to get actual duration
+      audioPlayer.addEventListener('loadedmetadata', () => {
+        const actualDuration = Math.ceil(audioPlayer.duration);
+        console.log('Actual audio duration:', actualDuration);
+        localStorage.setItem('actualAudioDuration', actualDuration.toString());
+      });
+
+      audioPlayer.play().catch(console.error);
+
+      // Store the audio URL and script in localStorage
+      localStorage.setItem('generatedAudioUrl', data.audioUrl);
+      localStorage.setItem('generatedScript', script);
+
+      // Update button state and handler
+      continueBtn.disabled = false;
+      continueBtn.textContent = 'Continue to Image Generation';
+      continueBtn.onclick = function() {
+        const actualDuration = localStorage.getItem('actualAudioDuration');
+        if (!actualDuration) {
+          alert('Please wait for audio to load completely');
+          return;
+        }
+
+        // Store style in localStorage to ensure it's available for image generation
+        localStorage.setItem('selectedStyle', style);
+
+        const params = new URLSearchParams({
+          template,
+          duration: actualDuration,
+          aspectRatio,
+          style
+        });
+
+        window.location.href = `/image-generation?${params.toString()}`;
+      };
+    } catch (error) {
+      console.error('Audio generation error:', error);
+      continueBtn.disabled = false;
+      continueBtn.textContent = 'Generate Audio';
+      alert(error.message || 'Failed to generate audio. Please try again.');
+    }
+  }
+
+  // Initialize voice selection
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('continueBtn').disabled = true;
+  });
+
+  let audioPlayer = null;
+  let isGenerating = false;
+
+  // Get DOM elements
+  const voiceGrid = document.getElementById('voiceGrid');
+  const backButton = document.getElementById('backButton');
+
+  // Handle back button click
+  if (backButton) {
+    backButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.history.back();
+    });
+  }
+
+  // Play voice preview
+  window.playPreview = function(previewUrl) {
+    try {
+      if (audioPlayer) {
+        audioPlayer.pause();
+        audioPlayer = null;
+      }
+      
+      audioPlayer = new Audio(previewUrl);
+      audioPlayer.play().catch(error => {
+        console.error('Error playing preview:', error);
+        alert('Failed to play voice preview');
+      });
+    } catch (error) {
+      console.error('Error playing preview:', error);
+      alert('Failed to play voice preview');
+    }
+  }
+
+  // Load available voices
+  async function loadVoices() {
+    try {
+      console.log('Loading voices...'); // Debug log
+      const response = await fetch('/api/get-voices');
+      
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Failed to load voices: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Received voices:', data); // Debug log
+
+      if (!data.voices || !Array.isArray(data.voices)) {
+        throw new Error('Invalid voice data received');
+      }
+
+      if (!voiceGrid) {
+        throw new Error('Voice grid element not found');
+      }
+
+      voiceGrid.innerHTML = ''; // Clear loading state
+
+      if (data.voices.length === 0) {
+        voiceGrid.innerHTML = `
+          <div class="col-span-full text-center">
+            <p class="text-gray-600">No voices available. Please try again later.</p>
+          </div>
+        `;
+        return;
+      }
+
+      data.voices.forEach(voice => {
+        const voiceCard = document.createElement('div');
+        voiceCard.id = `voice-${voice.voice_id}`;
+        voiceCard.className = 'voice-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 border-2 border-gray-200';
+        voiceCard.innerHTML = `
+          <div class="p-6">
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">${voice.name}</h3>
+            <div class="flex justify-between items-center mb-4">
+              <span class="text-gray-600">${voice.labels?.accent || 'English'}</span>
+              <span class="text-gray-600">${voice.labels?.gender || 'Neutral'}</span>
+            </div>
+            <div class="flex flex-col gap-2">
+              <button
+                onclick="window.playPreview('${voice.preview_url}')"
+                class="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Preview Voice
+              </button>
+              <button
+                onclick="window.selectVoice('${voice.voice_id}')"
+                class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Select Voice
+              </button>
+            </div>
+          </div>
+        `;
+        voiceGrid.appendChild(voiceCard);
+      });
+    } catch (error) {
+      console.error('Error loading voices:', error);
+      if (voiceGrid) {
+        voiceGrid.innerHTML = `
+          <div class="col-span-full text-center">
+            <p class="text-red-500 mb-4">Failed to load voices: ${error.message}</p>
+            <button
+              onclick="loadVoices()"
+              class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        `;
+      }
+    }
+  }
+
+  // Load voices when the page loads
+  loadVoices();
+
+  // Get script from localStorage
+  const script = localStorage.getItem('generatedScript');
+  if (!script) {
+    window.location.href = '/?error=No script found';
+  }
+
+  // Initialize script editor
+  const scriptEditor = document.getElementById('scriptEditor');
+  if (scriptEditor) {
+    scriptEditor.value = script;
+  }
+
+  // Handle script update
+  const updateScriptBtn = document.getElementById('updateScript');
+  updateScriptBtn?.addEventListener('click', () => {
+    if (scriptEditor) {
+      localStorage.setItem('generatedScript', scriptEditor.value);
+      // Show success message
+      const successMessage = document.createElement('div');
+      successMessage.className = 'text-green-600 text-sm mt-2';
+      successMessage.textContent = 'Script updated successfully!';
+      updateScriptBtn.parentElement?.appendChild(successMessage);
+      setTimeout(() => successMessage.remove(), 2000);
+    }
+  });
+</script>
+
+<style>
+  /* ... existing styles ... */
+</style> 

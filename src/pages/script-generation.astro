@@ -1,0 +1,132 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { ProgressSteps } from '../components/ProgressSteps';
+
+const { template, duration, topic } = Astro.url.searchParams;
+---
+
+<Layout title="Generate Script">
+  <div class="min-h-screen bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+      <ProgressSteps currentStep={2} client:load />
+      
+      <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-xl shadow-lg p-8">
+          <h1 class="text-3xl font-bold mb-6 text-gray-800">Generate Script</h1>
+          
+          <div class="mb-6 space-y-2">
+            <div class="flex items-center space-x-2 text-gray-600">
+              <span class="font-medium">Template:</span>
+              <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">{template}</span>
+            </div>
+            <div class="flex items-center space-x-2 text-gray-600">
+              <span class="font-medium">Duration:</span>
+              <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">{duration} seconds</span>
+            </div>
+            {topic && (
+              <div class="flex items-center space-x-2 text-gray-600">
+                <span class="font-medium">Topic:</span>
+                <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">{topic}</span>
+              </div>
+            )}
+          </div>
+
+          <div id="scriptGeneration" class="space-y-6">
+            <div id="loadingState" class="py-8">
+              <div class="flex flex-col items-center justify-center space-y-4">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                <p class="text-gray-600 text-center">Generating your script...</p>
+                <p class="text-sm text-gray-500 text-center">This may take a few moments</p>
+              </div>
+            </div>
+
+            <div id="scriptContent" class="hidden">
+              <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-3 text-gray-800">Generated Script</h2>
+                <div class="bg-gray-50 p-6 rounded-xl">
+                  <p id="scriptText" class="whitespace-pre-wrap text-gray-700"></p>
+                </div>
+              </div>
+
+              <div class="flex justify-between items-center">
+                <button id="regenerateBtn" class="px-6 py-3 text-gray-700 border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">
+                  Regenerate Script
+                </button>
+                <button id="continueBtn" class="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transform transition-all hover:scale-105">
+                  Continue to Voice Selection
+                </button>
+              </div>
+            </div>
+
+            <div id="errorState" class="hidden">
+              <div class="bg-red-50 border-2 border-red-200 p-6 rounded-xl">
+                <p id="errorMessage" class="text-red-600 mb-4"></p>
+                <button id="retryBtn" class="px-4 py-2 text-red-700 border-2 border-red-300 rounded-lg hover:bg-red-50">
+                  Retry Generation
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentScript = '';
+
+    async function generateScript() {
+      const loadingState = document.getElementById('loadingState');
+      const scriptContent = document.getElementById('scriptContent');
+      const errorState = document.getElementById('errorState');
+      const scriptText = document.getElementById('scriptText');
+      
+      loadingState.classList.remove('hidden');
+      scriptContent.classList.add('hidden');
+      errorState.classList.add('hidden');
+
+      try {
+        const response = await fetch('/api/generate-script', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            template: new URLSearchParams(window.location.search).get('template'),
+            duration: new URLSearchParams(window.location.search).get('duration'),
+            topic: new URLSearchParams(window.location.search).get('topic')
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          currentScript = data.script;
+          scriptText.textContent = data.script;
+          loadingState.classList.add('hidden');
+          scriptContent.classList.remove('hidden');
+        } else {
+          throw new Error(data.error || 'Failed to generate script');
+        }
+      } catch (error) {
+        loadingState.classList.add('hidden');
+        errorState.classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = error.message;
+      }
+    }
+
+    // Initial generation
+    generateScript();
+
+    // Event listeners
+    document.getElementById('regenerateBtn')?.addEventListener('click', generateScript);
+    document.getElementById('retryBtn')?.addEventListener('click', generateScript);
+    document.getElementById('continueBtn')?.addEventListener('click', () => {
+      if (currentScript) {
+        const searchParams = new URLSearchParams(window.location.search);
+        searchParams.append('script', encodeURIComponent(currentScript));
+        window.location.href = `/voice-selection?${searchParams.toString()}`;
+      }
+    });
+  </script>
+</Layout> 

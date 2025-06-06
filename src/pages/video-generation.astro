@@ -1,0 +1,706 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const urlParams = Astro.url.searchParams;
+const template = urlParams.get('template');
+const duration = urlParams.get('duration');
+const aspectRatio = urlParams.get('aspectRatio');
+const styleFromUrl = urlParams.get('style');
+
+console.log('[Video Generation Page] URL Parameters:', {
+  template,
+  duration,
+  aspectRatio,
+  styleFromUrl
+});
+
+if (!template || !duration || !aspectRatio) {
+  const errorMsg = `Missing required parameters: ${[
+    !template && 'template',
+    !duration && 'duration',
+    !aspectRatio && 'aspectRatio'
+  ].filter(Boolean).join(', ')}`;
+  return Astro.redirect(`/?error=${encodeURIComponent(errorMsg)}`);
+}
+
+// Determine a style key for context if needed, similar to image-generation
+const TEMPLATE_TO_STYLE_MAP: Record<string, string> = {
+  custom: 'realistic',
+  random: 'artistic',
+  travel: 'photographic',
+  'what-if': 'imaginative',
+  scary: 'dark',
+  bedtime: 'whimsical',
+  history: 'vintage',
+  'urban-legends': 'moody',
+  motivational: 'inspiring',
+  'fun-facts': 'infographic',
+  jokes: 'cartoon',
+  'life-tips': 'minimal'
+};
+
+let styleContext: string;
+if (styleFromUrl && Object.values(TEMPLATE_TO_STYLE_MAP).includes(styleFromUrl)) {
+  styleContext = styleFromUrl;
+} else {
+  styleContext = TEMPLATE_TO_STYLE_MAP[template] || 'realistic';
+}
+console.log('[Video Generation Page - Diagnostic] Style context for page:', styleContext);
+
+// Further client-side script will retrieve script, audioUrl, and images from localStorage.
+---
+
+<Layout title="Create Your Video">
+  <main class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Create Your Video</h1>
+        <p class="text-xl text-gray-600">Combining your generated audio and images into a final masterpiece.</p>
+      </div>
+
+      <!-- Progress Steps -->
+      <div class="flex justify-center mb-12">
+        <div class="flex items-center space-x-4 text-sm">
+          <span class="flex items-center"><span class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center mr-2">✓</span>Script</span>
+          <span class="text-gray-400">→</span>
+          <span class="flex items-center"><span class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center mr-2">✓</span>Voice</span>
+          <span class="text-gray-400">→</span>
+          <span class="flex items-center"><span class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center mr-2">✓</span>Images</span>
+          <span class="text-gray-400">→</span>
+          <span class="flex items-center"><span class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center mr-2">▶</span>Video</span>
+        </div>
+      </div>
+
+      <!-- Video Generation Section -->
+      <div class="bg-white rounded-xl shadow-lg p-8">
+        <!-- Video Player (Hidden initially) -->
+        <div id="videoPlayerContainer" class="hidden">
+          <h2 class="text-2xl font-semibold mb-4 text-center">Your Generated Video</h2>
+          <div class="video-wrapper">
+            <video id="videoPlayer" controls class="w-full rounded-lg bg-black"></video>
+          </div>
+          <div class="mt-4 text-center">
+            <a id="downloadVideoLink" href="#" download="generated_video.mp4" class="hidden inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition duration-150">
+              Download Video
+            </a>
+          </div>
+        </div>
+
+        <!-- Generation Controls -->
+        <div id="generationControls" class="text-center">
+          <button id="generateVideoButton" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-lg text-xl transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed">
+            Generate Video Now
+          </button>
+          <p id="generationStatus" class="mt-4 text-gray-600"></p>
+        </div>
+
+        <!-- Error Display -->
+        <div id="errorDisplay" class="mt-6 hidden">
+          <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong class="font-bold">Error:</strong>
+            <span id="errorMessage" class="block sm:inline ml-2"></span>
+            <button id="retryButton" class="mt-3 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
+              Retry
+            </button>
+          </div>
+        </div>
+
+        <!-- Asset Preview -->
+        <div class="mt-8 p-6 bg-gray-50 rounded-lg">
+          <h3 class="text-xl font-semibold mb-4">Assets Ready for Video</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 class="text-lg mb-2">Audio Track:</h4>
+              <audio id="audioPreview" controls class="w-full"></audio>
+            </div>
+            <div>
+              <h4 class="text-lg mb-2">Images (<span id="imageCount">0</span>):</h4>
+              <div id="imagePreview" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-white rounded border"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="mt-8 text-center">
+        <button onclick="history.back()" class="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded-lg transition duration-150">
+          ← Back to Previous Step
+        </button>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  // Motion effects configuration
+  const MOTION_EFFECTS = [
+    { name: 'zoomIn', scale: { start: 1, end: 1.2 } },
+    { name: 'zoomOut', scale: { start: 1.2, end: 1 } },
+    { name: 'panLeft', translate: { start: { x: 0, y: 0 }, end: { x: -50, y: 0 } } },
+    { name: 'panRight', translate: { start: { x: -50, y: 0 }, end: { x: 0, y: 0 } } },
+    { name: 'panUp', translate: { start: { x: 0, y: 0 }, end: { x: 0, y: -50 } } },
+    { name: 'panDown', translate: { start: { x: 0, y: -50 }, end: { x: 0, y: 0 } } }
+  ];
+
+  // Keywords that suggest different motion effects
+  const MOTION_KEYWORDS = {
+    zoomIn: ['closer', 'focus', 'important', 'key', 'crucial', 'highlight', 'specific', 'detail'],
+    zoomOut: ['broad', 'overall', 'generally', 'wide', 'expansive', 'entire', 'whole'],
+    panLeft: ['before', 'previous', 'past', 'earlier', 'back', 'return'],
+    panRight: ['next', 'future', 'forward', 'then', 'advance', 'proceed'],
+    panUp: ['above', 'higher', 'rise', 'increase', 'grow', 'improve'],
+    panDown: ['below', 'lower', 'decrease', 'down', 'reduce', 'fall']
+  };
+
+  function getMotionEffectForChunk(text) {
+    const lowerText = text.toLowerCase();
+    
+    // Check for keywords in text
+    for (const [effectName, keywords] of Object.entries(MOTION_KEYWORDS)) {
+      if (keywords.some(keyword => lowerText.includes(keyword))) {
+        return MOTION_EFFECTS.find(effect => effect.name === effectName);
+      }
+    }
+    
+    // Return random effect if no keywords match
+    return MOTION_EFFECTS[Math.floor(Math.random() * MOTION_EFFECTS.length)];
+  }
+
+  // Get URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const aspectRatio = urlParams.get('aspectRatio') || '9:16';
+
+  let generatedScript = null;
+  let generatedAudioUrl = null;
+  let generatedImages = [];
+  
+  // UI Elements
+  const generateButton = document.getElementById('generateVideoButton');
+  const statusText = document.getElementById('generationStatus');
+  const videoContainer = document.getElementById('videoPlayerContainer');
+  const videoPlayer = document.getElementById('videoPlayer');
+  const downloadLink = document.getElementById('downloadVideoLink');
+  const errorDisplay = document.getElementById('errorDisplay');
+  const errorMessage = document.getElementById('errorMessage');
+  const retryButton = document.getElementById('retryButton');
+  const audioPreview = document.getElementById('audioPreview');
+  const imagePreview = document.getElementById('imagePreview');
+  const imageCountElement = document.getElementById('imageCount');
+
+  // Canvas setup
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  function getDimensions(aspectRatio) {
+    const dimensions = {
+      '9:16': { width: 1080, height: 1920 },
+      '16:9': { width: 1920, height: 1080 },
+      '1:1': { width: 1080, height: 1080 }
+    };
+    return dimensions[aspectRatio] || dimensions['9:16'];
+  }
+
+  // Function to ensure audio is fully loaded
+  async function loadAudio(url) {
+    try {
+      // First try to load the audio file
+      const audio = new Audio(url);
+      
+      // Get speech marks from ElevenLabs API endpoint
+      const speechMarksUrl = url.replace('/audio/', '/speech_marks/').replace('.mp3', '.json');
+      console.log('Fetching speech marks from:', speechMarksUrl);
+      
+      let speechMarks = [];
+      try {
+        const speechMarksResponse = await fetch(speechMarksUrl);
+        if (speechMarksResponse.ok) {
+          speechMarks = await speechMarksResponse.json();
+        } else {
+          console.warn('Speech marks not available, falling back to duration-based timing');
+        }
+      } catch (error) {
+        console.warn('Failed to fetch speech marks:', error);
+      }
+      
+      return new Promise((resolve, reject) => {
+        audio.addEventListener('loadedmetadata', () => {
+          console.log('Audio duration:', audio.duration);
+          resolve({ 
+            audio, 
+            url: url,
+            speechMarks
+          });
+        });
+
+        audio.addEventListener('error', (e) => {
+          console.error('Audio load error:', e);
+          reject(new Error('Failed to load audio file'));
+        });
+
+        // Start loading the audio
+        audio.load();
+      });
+    } catch (error) {
+      console.error('Error in loadAudio:', error);
+      throw new Error(`Failed to load audio: ${error.message}`);
+    }
+  }
+
+  // Function to ensure image is fully loaded
+  async function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+      img.src = url;
+    });
+  }
+
+  // Function to draw image maintaining aspect ratio
+  function drawImageCentered(ctx, img, canvas) {
+    const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+    const x = (canvas.width - img.width * scale) / 2;
+    const y = (canvas.height - img.height * scale) / 2;
+    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+  }
+
+  // Function to create transition between images
+  function createTransition(ctx, img1, img2, progress, canvas) {
+    ctx.globalAlpha = 1 - progress;
+    drawImageCentered(ctx, img1, canvas);
+    ctx.globalAlpha = progress;
+    drawImageCentered(ctx, img2, canvas);
+    ctx.globalAlpha = 1;
+  }
+
+  // Function to apply motion effect
+  function applyMotionEffect(ctx, img, canvas, progress, effect) {
+    const baseScale = Math.max(canvas.width / img.width, canvas.height / img.height) * 1.2;
+    
+    let currentScale = baseScale;
+    let translateX = 0;
+    let translateY = 0;
+
+    if (effect.scale) {
+      const scaleProgress = effect.scale.start + (effect.scale.end - effect.scale.start) * progress;
+      currentScale *= scaleProgress;
+    }
+
+    if (effect.translate) {
+      translateX = effect.translate.start.x + (effect.translate.end.x - effect.translate.start.x) * progress;
+      translateY = effect.translate.start.y + (effect.translate.end.y - effect.translate.start.y) * progress;
+    }
+
+    const x = (canvas.width - img.width * currentScale) / 2 + translateX;
+    const y = (canvas.height - img.height * currentScale) / 2 + translateY;
+
+    ctx.drawImage(img, x, y, img.width * currentScale, img.height * currentScale);
+  }
+
+  // Get script segments using GPT
+  async function getScriptSegments(script) {
+    try {
+      const response = await fetch('/api/segment-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You are a video editor. Break this script into meaningful narrative chunks based on:
+1. Scene changes
+2. Emotional shifts
+3. Topic transitions
+4. Natural pauses in speech
+
+Each chunk should feel natural and flow well with the narration. Avoid breaking mid-sentence unless there's a dramatic pause.
+
+Script to segment:
+${script}`,
+          script
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to segment script');
+      const { segments } = await response.json();
+      return segments;
+    } catch (error) {
+      console.error('Script segmentation failed:', error);
+      // Fallback to simple sentence splitting but with more natural breaks
+      return script.split(/(?<=[.!?])\s+(?=[A-Z])/).filter(s => s.trim());
+    }
+  }
+
+  // Calculate timing for script chunks using speech marks or duration
+  function calculateChunkTimings(chunks, speechMarks, audioDuration) {
+    if (!speechMarks || speechMarks.length === 0) {
+      console.log('Using duration-based timing, audio duration:', audioDuration);
+      const timePerChunk = audioDuration / chunks.length;
+      return chunks.map((chunk, index) => ({
+        text: chunk,
+        start: index * timePerChunk,
+        end: (index + 1) * timePerChunk,
+        duration: timePerChunk
+      }));
+    }
+
+    console.log('Using speech marks for timing, marks count:', speechMarks.length);
+    return chunks.map((chunk, index) => {
+      // Find all words in this chunk
+      const words = chunk.toLowerCase().match(/\b\w+\b/g) || [];
+      
+      // Find matching speech marks
+      const relevantMarks = speechMarks.filter(mark => 
+        words.some(word => mark.word.toLowerCase().includes(word))
+      );
+
+      if (relevantMarks.length === 0) {
+        // Fallback for chunks without matching marks
+        const avgDuration = audioDuration / chunks.length;
+        return {
+          text: chunk,
+          start: index * avgDuration,
+          end: (index + 1) * avgDuration,
+          duration: avgDuration
+        };
+      }
+
+      const start = Math.min(...relevantMarks.map(m => m.start)) / 1000;
+      const end = Math.max(...relevantMarks.map(m => m.end)) / 1000;
+      
+      return {
+        text: chunk,
+        start,
+        end,
+        duration: end - start
+      };
+    });
+  }
+
+  async function generateVideo() {
+    try {
+      setStatus('Preparing video generation...');
+      generateButton.disabled = true;
+      errorDisplay.classList.add('hidden');
+
+      if (!generatedScript || !generatedAudioUrl || !generatedImages?.length) {
+        throw new Error('Missing required assets. Please ensure script, audio, and images are available.');
+      }
+
+      // Load and validate audio
+      console.log('Loading audio from:', generatedAudioUrl);
+      const { audio, url: audioUrl, speechMarks } = await loadAudio(generatedAudioUrl);
+      const audioDuration = audio.duration;
+      console.log('Audio loaded successfully, duration:', audioDuration);
+
+      if (!audioDuration || audioDuration <= 0) {
+        throw new Error('Invalid audio duration');
+      }
+
+      // Load and validate images
+      const images = await Promise.all(generatedImages.map(loadImage));
+      if (images.length === 0) {
+        throw new Error('No images available');
+      }
+
+      // Get semantic segments
+      const scriptSegments = await getScriptSegments(generatedScript);
+      if (!scriptSegments?.length) {
+        throw new Error('Failed to segment script');
+      }
+
+      // Calculate timings
+      console.log('Calculating segment timings...');
+      const segments = calculateChunkTimings(scriptSegments, speechMarks, audioDuration);
+      
+      // Ensure full audio coverage
+      const lastSegment = segments[segments.length - 1];
+      if (lastSegment.end < audioDuration) {
+        lastSegment.end = audioDuration;
+        lastSegment.duration = lastSegment.end - lastSegment.start;
+      }
+
+      // Assign motion effects and images to segments
+      segments.forEach((segment, index) => {
+        segment.imageIndex = index % images.length;
+        segment.motionEffect = getMotionEffectForChunk(segment.text);
+      });
+
+      // Set up canvas
+      const dimensions = getDimensions(aspectRatio);
+      canvas.width = dimensions.width;
+      canvas.height = dimensions.height;
+
+      // Video settings
+      const fps = 30;
+      const totalFrames = Math.ceil(audioDuration * fps);
+      const transitionDuration = 0.75;
+      
+      setStatus('Starting video generation...');
+      console.log('Total frames to render:', totalFrames);
+
+      // Set up MediaRecorder
+      let mediaRecorder;
+      try {
+        const stream = canvas.captureStream(fps);
+        mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp9',
+          videoBitsPerSecond: 8000000
+        });
+      } catch (error) {
+        throw new Error(`MediaRecorder setup failed: ${error.message}`);
+      }
+
+      const chunks = [];
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+      // Create a promise for video completion
+      const videoPromise = new Promise((resolve, reject) => {
+        mediaRecorder.onstop = async () => {
+          try {
+            const videoBlob = new Blob(chunks, { type: 'video/webm' });
+            resolve(videoBlob);
+          } catch (error) {
+            reject(error);
+          }
+        };
+      });
+
+      // Start recording
+      mediaRecorder.start();
+      
+      // Frame rendering with precise timing
+      let currentFrame = 0;
+      let lastRenderTime = performance.now();
+      
+      function renderNextFrame() {
+        const now = performance.now();
+        const elapsed = now - lastRenderTime;
+        
+        if (elapsed < (1000 / fps)) {
+          requestAnimationFrame(renderNextFrame);
+          return;
+        }
+        
+        if (currentFrame >= totalFrames) {
+          console.log('Finished rendering frames');
+          mediaRecorder.stop();
+          return;
+        }
+
+        const currentTime = currentFrame / fps;
+        console.log('Rendering frame:', currentFrame, 'Time:', currentTime.toFixed(2));
+
+        // Find current segment
+        const currentSegment = segments.find(seg => 
+          currentTime >= seg.start && currentTime < seg.end
+        ) || segments[segments.length - 1];
+        
+        const nextSegment = segments[segments.findIndex(seg => seg === currentSegment) + 1];
+
+        // Clear canvas
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Calculate progress within current segment
+        const segmentProgress = Math.min(
+          (currentTime - currentSegment.start) / currentSegment.duration,
+          1
+        );
+
+        // Check if we're in a transition
+        if (nextSegment && currentTime >= currentSegment.end - transitionDuration) {
+          // Transition between segments
+          const transitionProgress = (currentTime - (currentSegment.end - transitionDuration)) / transitionDuration;
+          
+          // Draw current image with motion
+          ctx.globalAlpha = 1 - transitionProgress;
+          applyMotionEffect(
+            ctx,
+            images[currentSegment.imageIndex],
+            canvas,
+            segmentProgress,
+            currentSegment.motionEffect
+          );
+
+          // Draw next image with motion
+          ctx.globalAlpha = transitionProgress;
+          applyMotionEffect(
+            ctx,
+            images[nextSegment.imageIndex],
+            canvas,
+            0,
+            nextSegment.motionEffect
+          );
+
+          ctx.globalAlpha = 1;
+        } else {
+          // Regular image display with motion
+          applyMotionEffect(
+            ctx,
+            images[currentSegment.imageIndex],
+            canvas,
+            segmentProgress,
+            currentSegment.motionEffect
+          );
+        }
+
+        currentFrame++;
+        lastRenderTime = now;
+        requestAnimationFrame(renderNextFrame);
+      }
+
+      // Start frame rendering
+      renderNextFrame();
+
+      // Wait for video generation to complete
+      const videoBlob = await videoPromise;
+      const videoUrl = URL.createObjectURL(videoBlob);
+
+      // Create final video element with synchronized audio
+      const finalVideo = document.createElement('video');
+      finalVideo.src = videoUrl;
+      finalVideo.controls = true;
+      finalVideo.className = 'w-full h-full object-contain rounded-lg';
+
+      // Sync audio with video
+      const videoAudio = new Audio(audioUrl);
+      finalVideo.onplay = () => {
+        videoAudio.currentTime = finalVideo.currentTime;
+        videoAudio.play().catch(console.error);
+      };
+      
+      finalVideo.onpause = () => videoAudio.pause();
+      finalVideo.onseeked = () => {
+        videoAudio.currentTime = finalVideo.currentTime;
+      };
+      finalVideo.onended = () => videoAudio.pause();
+
+      // Update UI
+      const aspectRatioContainer = document.createElement('div');
+      aspectRatioContainer.className = `relative aspect-${aspectRatio.replace(':', '-')}`;
+      aspectRatioContainer.style.maxWidth = '100%';
+      aspectRatioContainer.style.margin = '0 auto';
+      
+      aspectRatioContainer.appendChild(finalVideo);
+      videoContainer.innerHTML = '';
+      videoContainer.appendChild(aspectRatioContainer);
+      
+      downloadLink.href = videoUrl;
+      downloadLink.download = 'generated_video.webm';
+      downloadLink.classList.remove('hidden');
+      videoContainer.classList.remove('hidden');
+      generateButton.classList.add('hidden');
+
+      setStatus('Video generated successfully!');
+
+    } catch (error) {
+      console.error('Error generating video:', error);
+      setStatus('Error: ' + error.message);
+      showError('Generation Error', error.message);
+      generateButton.disabled = false;
+    }
+  }
+
+  function loadAssetsFromLocalStorage() {
+    try {
+      generatedScript = localStorage.getItem('generatedScript');
+      generatedAudioUrl = localStorage.getItem('generatedAudioUrl');
+      const imagesJson = localStorage.getItem('generatedImages');
+      
+      if (!generatedScript || !generatedAudioUrl || !imagesJson) {
+        throw new Error('Missing required assets');
+      }
+
+      generatedImages = JSON.parse(imagesJson);
+      if (!Array.isArray(generatedImages) || generatedImages.length === 0) {
+        throw new Error('No images available');
+      }
+
+      // Update UI
+      audioPreview.src = generatedAudioUrl;
+      imageCountElement.textContent = generatedImages.length.toString();
+      imagePreview.innerHTML = '';
+      
+      const sentences = generatedScript.match(/[^.!?]+[.!?]+/g) || [];
+      generatedImages.forEach((url, index) => {
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'w-full h-24 object-cover rounded';
+        img.title = sentences[index] || `Image ${index + 1}`;
+        imagePreview.appendChild(img);
+      });
+
+      generateButton.disabled = false;
+      return true;
+    } catch (error) {
+      console.error('Error loading assets:', error);
+      statusText.textContent = 'Error: Missing required assets. Please go back and regenerate.';
+      generateButton.disabled = true;
+      return false;
+    }
+  }
+
+  function setStatus(message) {
+    statusText.textContent = message;
+  }
+
+  function showError(title, message) {
+    errorDisplay.classList.remove('hidden');
+    errorMessage.textContent = message;
+    generateButton.disabled = false;
+  }
+
+  // Initialize immediately when the script loads
+  document.addEventListener('DOMContentLoaded', () => {
+    if (loadAssetsFromLocalStorage()) {
+      generateButton.onclick = generateVideo;
+    }
+
+    // Add retry button handler
+    retryButton?.addEventListener('click', () => {
+      errorDisplay.classList.add('hidden');
+      generateVideo();
+    });
+  });
+</script>
+
+<style>
+  /* Video container styles */
+  #videoPlayerContainer {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  /* Aspect ratio containers */
+  .aspect-9-16 {
+    position: relative;
+    padding-top: 177.78%; /* 16:9 Aspect Ratio */
+    max-width: 450px;
+    margin: 0 auto;
+  }
+
+  .aspect-16-9 {
+    position: relative;
+    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+  }
+
+  .aspect-1-1 {
+    position: relative;
+    padding-top: 100%; /* 1:1 Aspect Ratio */
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* Video element styles */
+  video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: black;
+    border-radius: 0.5rem;
+  }
+</style>
+</style>
