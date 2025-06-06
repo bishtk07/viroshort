@@ -126,6 +126,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const audioBuffer = await response.arrayBuffer();
     console.log('✅ preview-voice: Successfully generated audio, size:', audioBuffer.byteLength);
 
+    // Return audio data directly (not JSON)
     return new Response(audioBuffer, {
       status: 200,
       headers: {
