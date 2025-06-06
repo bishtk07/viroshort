@@ -1,18 +1,17 @@
 import type { APIRoute } from 'astro';
 
-// Preview text to use for all voice previews
-const PREVIEW_TEXT = "Hello, this is a preview of this voice. This gives you an idea of how it sounds.";
-
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   try {
-    // Parse request body
+    console.log('🔍 preview-voice: Starting API call...');
+    
     const { voiceId } = await request.json();
     
     if (!voiceId) {
+      console.error('🚨 preview-voice: No voice ID provided');
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          error: 'Voice ID is required' 
+          error: 'Voice ID is required',
+          success: false 
         }), 
         { 
           status: 400,
@@ -23,21 +22,38 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    // Access environment variables with fallback - CONSISTENT NAMING
-    const ELEVEN_LABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
-                               process.env.ELEVEN_LABS_API_KEY;
+    console.log('🔍 preview-voice: Voice ID:', voiceId);
+    
+    // Try all possible sources for the API key with comprehensive logging
+    const cloudflareKey = (locals as any).runtime?.env?.ELEVEN_LABS_API_KEY;
+    const importMetaKey = import.meta.env.ELEVEN_LABS_API_KEY;
+    const processEnvKey = process.env.ELEVEN_LABS_API_KEY;
+    
+    console.log('🔍 preview-voice: Environment sources check:', {
+      cloudflareRuntime: !!cloudflareKey,
+      cloudflareLength: cloudflareKey ? cloudflareKey.length : 0,
+      importMeta: !!importMetaKey,
+      importMetaLength: importMetaKey ? importMetaKey.length : 0,
+      processEnv: !!processEnvKey,
+      processEnvLength: processEnvKey ? processEnvKey.length : 0,
+      nodeEnv: process.env.NODE_ENV
+    });
+    
+    // Use the first available key
+    const ELEVEN_LABS_API_KEY = cloudflareKey || importMetaKey || processEnvKey;
     
     if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_api_key_here') {
-      console.error('ElevenLabs API key not properly configured');
-      console.log('Environment check for preview:', {
-        importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
-        processEnv: !!process.env.ELEVEN_LABS_API_KEY,
-        keyLength: ELEVEN_LABS_API_KEY ? ELEVEN_LABS_API_KEY.length : 0
-      });
+      console.error('🚨 preview-voice: API key not found or invalid');
       return new Response(
         JSON.stringify({ 
+          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to your Cloudflare Pages environment variables.',
           success: false,
-          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to environment variables.' 
+          debug: {
+            cloudflareAvailable: !!cloudflareKey,
+            importMetaAvailable: !!importMetaKey,
+            processEnvAvailable: !!processEnvKey,
+            nodeEnv: process.env.NODE_ENV
+          }
         }), 
         { 
           status: 500,
@@ -48,10 +64,13 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    console.log('Generating voice preview for voice ID:', voiceId);
-    console.log('ElevenLabs API key found with length:', ELEVEN_LABS_API_KEY.length);
+    console.log('✅ preview-voice: API key found, length:', ELEVEN_LABS_API_KEY.length);
 
-    // Generate voice preview using ElevenLabs API
+    // Sample text for voice preview
+    const previewText = "Hello! This is a preview of my voice. I hope you find it suitable for your project.";
+    
+    console.log('🌐 preview-voice: Making request to ElevenLabs API for voice:', voiceId);
+
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
@@ -60,29 +79,40 @@ export const POST: APIRoute = async ({ request }) => {
         'xi-api-key': ELEVEN_LABS_API_KEY
       },
       body: JSON.stringify({
-        text: PREVIEW_TEXT,
+        text: previewText,
         model_id: "eleven_monolingual_v1",
         voice_settings: {
           stability: 0.5,
-          similarity_boost: 0.75
+          similarity_boost: 0.5
         }
       })
     });
 
+    console.log('📡 preview-voice: ElevenLabs API response status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs API error:', {
+      console.error('🚨 preview-voice: ElevenLabs API error:', {
         status: response.status,
         statusText: response.statusText,
+        errorText,
         voiceId,
-        errorText
+        keyLength: ELEVEN_LABS_API_KEY.length
       });
       
       return new Response(
         JSON.stringify({ 
+          error: `ElevenLabs API error: ${response.status} ${response.statusText}`,
+          details: errorText,
           success: false,
-          error: `Failed to generate voice preview: ${response.status} ${response.statusText}`,
-          details: errorText
+          debug: {
+            voiceId,
+            apiKeyLength: ELEVEN_LABS_API_KEY.length,
+            requestBody: {
+              text: previewText,
+              model: "eleven_monolingual_v1"
+            }
+          }
         }), 
         { 
           status: response.status,
@@ -93,41 +123,29 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    // Convert audio response to base64 for direct use
     const audioBuffer = await response.arrayBuffer();
-    
-    if (!audioBuffer || audioBuffer.byteLength === 0) {
-      throw new Error('Received empty audio data from ElevenLabs API');
-    }
-    
-    const audioArray = new Uint8Array(audioBuffer);
-    const audioBase64 = Buffer.from(audioArray).toString('base64');
-    const audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
+    console.log('✅ preview-voice: Successfully generated audio, size:', audioBuffer.byteLength);
 
-    console.log('Voice preview generated successfully:', {
-      voiceId,
-      audioSize: audioBuffer.byteLength
+    return new Response(audioBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': audioBuffer.byteLength.toString(),
+        'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+      }
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        audioUrl
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
   } catch (error) {
-    console.error('Error in preview-voice endpoint:', error);
+    console.error('🚨 preview-voice: Unexpected error:', error);
     return new Response(
       JSON.stringify({ 
+        error: 'Unexpected server error during voice preview',
+        details: error instanceof Error ? error.message : 'Unknown error',
         success: false,
-        error: 'Failed to generate voice preview',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        debug: {
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          stack: error instanceof Error ? error.stack : undefined
+        }
       }), 
       { 
         status: 500,

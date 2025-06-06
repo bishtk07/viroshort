@@ -15,23 +15,40 @@ interface ElevenLabsResponse {
   voices: ElevenLabsVoice[];
 }
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
   try {
-    // Access environment variables with fallback - CONSISTENT NAMING
-    const ELEVEN_LABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
-                               process.env.ELEVEN_LABS_API_KEY;
+    console.log('🔍 get-voices: Starting API call...');
+    
+    // Try all possible sources for the API key with comprehensive logging
+    const cloudflareKey = (locals as any).runtime?.env?.ELEVEN_LABS_API_KEY;
+    const importMetaKey = import.meta.env.ELEVEN_LABS_API_KEY;
+    const processEnvKey = process.env.ELEVEN_LABS_API_KEY;
+    
+    console.log('🔍 get-voices: Environment sources check:', {
+      cloudflareRuntime: !!cloudflareKey,
+      cloudflareLength: cloudflareKey ? cloudflareKey.length : 0,
+      importMeta: !!importMetaKey,
+      importMetaLength: importMetaKey ? importMetaKey.length : 0,
+      processEnv: !!processEnvKey,
+      processEnvLength: processEnvKey ? processEnvKey.length : 0,
+      nodeEnv: process.env.NODE_ENV
+    });
+    
+    // Use the first available key
+    const ELEVEN_LABS_API_KEY = cloudflareKey || importMetaKey || processEnvKey;
     
     if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_api_key_here') {
-      console.error('ElevenLabs API key not properly configured');
-      console.log('Environment check:', {
-        importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
-        processEnv: !!process.env.ELEVEN_LABS_API_KEY,
-        nodeEnv: process.env.NODE_ENV
-      });
+      console.error('🚨 get-voices: API key not found or invalid');
       return new Response(
         JSON.stringify({ 
-          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to environment variables.',
-          success: false
+          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to your Cloudflare Pages environment variables.',
+          success: false,
+          debug: {
+            cloudflareAvailable: !!cloudflareKey,
+            importMetaAvailable: !!importMetaKey,
+            processEnvAvailable: !!processEnvKey,
+            nodeEnv: process.env.NODE_ENV
+          }
         }), 
         { 
           status: 500,
@@ -42,8 +59,8 @@ export const GET: APIRoute = async () => {
       );
     }
 
-    console.log('ElevenLabs API key found with length:', ELEVEN_LABS_API_KEY.length);
-    console.log('Fetching voices from ElevenLabs...'); // Debug log
+    console.log('✅ get-voices: API key found, length:', ELEVEN_LABS_API_KEY.length);
+    console.log('🌐 get-voices: Making request to ElevenLabs API...');
 
     const response = await fetch('https://api.elevenlabs.io/v1/voices', {
       headers: {
@@ -52,19 +69,29 @@ export const GET: APIRoute = async () => {
       }
     });
 
+    console.log('📡 get-voices: ElevenLabs API response status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs API error:', {
+      console.error('🚨 get-voices: ElevenLabs API error:', {
         status: response.status,
         statusText: response.statusText,
-        errorText
+        errorText,
+        keyLength: ELEVEN_LABS_API_KEY.length
       });
       
       return new Response(
         JSON.stringify({ 
-          error: `Failed to fetch voices from ElevenLabs: ${response.status} ${response.statusText}`,
+          error: `ElevenLabs API error: ${response.status} ${response.statusText}`,
           details: errorText,
-          success: false
+          success: false,
+          debug: {
+            apiKeyLength: ELEVEN_LABS_API_KEY.length,
+            requestHeaders: {
+              accept: 'application/json',
+              apiKeyPresent: true
+            }
+          }
         }), 
         { 
           status: response.status,
@@ -78,11 +105,16 @@ export const GET: APIRoute = async () => {
     const data = await response.json() as ElevenLabsResponse;
     
     if (!data.voices || !Array.isArray(data.voices)) {
-      console.error('Invalid response format from ElevenLabs:', data);
+      console.error('🚨 get-voices: Invalid response format:', data);
       return new Response(
         JSON.stringify({ 
           error: 'Invalid response format from ElevenLabs API',
-          success: false
+          success: false,
+          debug: {
+            responseReceived: !!data,
+            voicesArray: Array.isArray(data?.voices),
+            dataKeys: data ? Object.keys(data) : []
+          }
         }), 
         { 
           status: 500,
@@ -93,17 +125,28 @@ export const GET: APIRoute = async () => {
       );
     }
 
-    console.log(`Successfully fetched ${data.voices.length} voices`); // Debug log
+    console.log(`✅ get-voices: Successfully fetched ${data.voices.length} voices`);
+
+    // Transform and enrich voice data
+    const transformedVoices = data.voices.map((voice: ElevenLabsVoice) => ({
+      voice_id: voice.voice_id,
+      name: voice.name,
+      preview_url: voice.preview_url,
+      labels: {
+        gender: voice.labels?.gender || 'Neutral',
+        accent: voice.labels?.accent || 'Universal',
+        age: voice.labels?.age || 'Adult',
+        premium: voice.labels?.premium || false,
+        ...voice.labels
+      }
+    }));
 
     return new Response(
       JSON.stringify({
         success: true,
-        voices: data.voices.map((voice: ElevenLabsVoice) => ({
-          voice_id: voice.voice_id,
-          name: voice.name,
-          preview_url: voice.preview_url,
-          labels: voice.labels || {}
-        }))
+        voices: transformedVoices,
+        count: transformedVoices.length,
+        timestamp: new Date().toISOString()
       }),
       {
         status: 200,
@@ -113,12 +156,16 @@ export const GET: APIRoute = async () => {
       }
     );
   } catch (error) {
-    console.error('Error in get-voices endpoint:', error);
+    console.error('🚨 get-voices: Unexpected error:', error);
     return new Response(
       JSON.stringify({ 
-        error: 'Failed to fetch voices',
+        error: 'Unexpected server error',
         details: error instanceof Error ? error.message : 'Unknown error',
-        success: false
+        success: false,
+        debug: {
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          stack: error instanceof Error ? error.stack : undefined
+        }
       }), 
       { 
         status: 500,
@@ -128,4 +175,4 @@ export const GET: APIRoute = async () => {
       }
     );
   }
-} 
+}; 
