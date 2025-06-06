@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { VoiceSelector } from './VoiceSelector';
+import VoiceSelector from './VoiceSelector';
 
 interface Template {
   id: string;
@@ -142,14 +141,14 @@ export function TemplateSelector() {
     window.location.href = `/script-generation?${searchParams.toString()}`;
   };
 
-  const handleVoiceSelect = async (voiceId: string) => {
+  const handleVoiceSelect = async (voiceId: string, voiceName: string) => {
     try {
       // Here you would typically call your API to generate the voiceover
       // and then proceed with video generation
-      console.log('Selected voice:', voiceId);
+      console.log('Selected voice:', voiceId, voiceName);
       
       // For now, just show an alert
-      alert('Voice selected! In a real implementation, this would generate the voiceover and proceed with video creation.');
+      alert(`Voice selected: ${voiceName}! In a real implementation, this would generate the voiceover and proceed with video creation.`);
     } catch (error) {
       console.error('Error generating voiceover:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate voiceover');
@@ -243,7 +242,6 @@ export function TemplateSelector() {
       {/* Voice Selection */}
       {generatedScript && (
         <VoiceSelector
-          script={generatedScript}
           onVoiceSelect={handleVoiceSelect}
         />
       )}
