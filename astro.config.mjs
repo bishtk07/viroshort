@@ -31,10 +31,6 @@ export default defineConfig({
   vite: {
     ssr: {
       noExternal: ['@supabase/supabase-js']
-    },
-    define: {
-      'import.meta.env.OPENAI_API_KEY': JSON.stringify(process.env.OPENAI_API_KEY),
-      'import.meta.env.ELEVEN_LABS_API_KEY': JSON.stringify(process.env.ELEVEN_LABS_API_KEY)
     }
   }
 }); 

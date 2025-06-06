@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const { prompt, duration, template } = await request.json();
 
@@ -15,21 +15,28 @@ export const POST: APIRoute = async ({ request }) => {
     const topic = prompt || template;
     const targetDuration = duration || 60;
 
-    // Check if API key is available
-    const OPENAI_API_KEY = import.meta.env.OPENAI_API_KEY;
+    // Access environment variables from Cloudflare runtime
+    const OPENAI_API_KEY = (locals as any).runtime?.env?.OPENAI_API_KEY || 
+                          import.meta.env.OPENAI_API_KEY || 
+                          process.env.OPENAI_API_KEY;
 
     if (!OPENAI_API_KEY) {
-      console.error('OpenAI API key not found');
+      console.error('OpenAI API key not found in any environment source');
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'OpenAI API key not configured. Please check environment variables.' 
+          error: 'OpenAI API key not configured. Please check environment variables in Cloudflare Pages.' 
         }),
         { status: 500 }
       );
     }
 
     console.log('OpenAI API key found with length:', OPENAI_API_KEY.length);
+    console.log('Environment sources checked:', {
+      cloudflareRuntime: !!(locals as any).runtime?.env?.OPENAI_API_KEY,
+      importMeta: !!import.meta.env.OPENAI_API_KEY,
+      processEnv: !!process.env.OPENAI_API_KEY
+    });
 
     // Use fetch instead of OpenAI SDK
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
