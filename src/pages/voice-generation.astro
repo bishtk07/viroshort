@@ -193,12 +193,15 @@ if (!template || !duration || !aspectRatio || !style) {
   // Fetch voices from ElevenLabs
   async function fetchVoices() {
     try {
-      const response = await fetch('/api/list-voices');
+      const response = await fetch('/api/get-voices');
       if (!response.ok) {
         throw new Error('Failed to fetch voices');
       }
       const data = await response.json();
-      return data.voices;
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load voices');
+      }
+      return data.voices || [];
     } catch (error) {
       console.error('Error fetching voices:', error);
       showError('Failed to load voices. Please refresh the page.');
@@ -219,14 +222,19 @@ if (!template || !duration || !aspectRatio || !style) {
     div.className = 'voice-card';
     div.dataset.voiceId = voice.voice_id;
     
+    const isPremium = voice.labels?.premium;
+    const accent = voice.labels?.accent || '';
+    const gender = voice.labels?.gender || '';
+    const description = voice.labels?.description || [accent, gender].filter(Boolean).join(', ');
+    
     div.innerHTML = `
       <div class="flex items-center justify-between mb-2">
         <div class="text-gray-900 font-medium">${voice.name}</div>
-        ${voice.category === 'premium' ? 
+        ${isPremium ? 
           '<span class="premium-badge">⭐ Premium</span>' : 
           ''}
       </div>
-      <div class="text-sm text-gray-600 mb-3">${voice.labels?.description || voice.labels?.accent || ''}</div>
+      <div class="text-sm text-gray-600 mb-3">${description}</div>
       <button class="preview-button">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -246,44 +254,34 @@ if (!template || !duration || !aspectRatio || !style) {
     const voices = await fetchVoices();
     const filteredVoices = category === 'all' 
       ? voices 
-      : voices.filter(v => v.category === category);
+      : voices.filter(v => v.labels?.premium);
 
     if (filteredVoices.length === 0) {
-      voiceGrid.innerHTML = `
-        <div class="col-span-full text-center py-8">
-          <p class="text-gray-600">No voices found in this category</p>
-        </div>
-      `;
+      voiceGrid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-600">No voices found</div>';
       return;
     }
 
     voiceGrid.innerHTML = '';
-    filteredVoices.forEach(voice => {
-      const voiceCard = createVoiceButton(voice);
-      voiceGrid.appendChild(voiceCard);
-    });
     
-    // Attach event listeners
-    attachVoiceEventListeners();
-  }
+    filteredVoices.forEach(voice => {
+      const card = createVoiceButton(voice);
+      voiceGrid.appendChild(card);
+    });
 
-  // Attach event listeners to voice buttons
-  function attachVoiceEventListeners() {
-    // Voice selection
+    // Add click listeners for voice selection
     document.querySelectorAll('.voice-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.preview-button')) return;
-        
+      card.addEventListener('click', () => {
         document.querySelectorAll('.voice-card').forEach(c => {
           c.classList.remove('selected');
         });
         card.classList.add('selected');
         selectedVoice = card.dataset.voiceId;
         generateButton.disabled = false;
+        console.log('Selected voice:', selectedVoice);
       });
     });
 
-    // Preview voice
+    // Add preview button listeners
     document.querySelectorAll('.preview-button').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -350,25 +348,37 @@ if (!template || !duration || !aspectRatio || !style) {
 
   // Generate voice
   generateButton.addEventListener('click', async () => {
-    if (!selectedVoice || !script) return;
+    if (!selectedVoice || !script) {
+      console.error('Missing required data:', { hasVoice: !!selectedVoice, hasScript: !!script });
+      showError('Please select a voice and ensure script is available');
+      return;
+    }
 
     try {
       generateButton.disabled = true;
       statusText.textContent = 'Generating voice...';
       statusText.classList.remove('text-red-500');
 
+      console.log('Sending API request with:', { 
+        voiceId: selectedVoice, 
+        scriptLength: script.length 
+      });
+
       const response = await fetch('/api/generate-audio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: script,
+          script: script,  // Changed from 'text' to 'script'
           voiceId: selectedVoice
         })
       });
 
+      console.log('API response status:', response.status);
+
       const data = await response.json();
 
       if (!response.ok || !data.success) {
+        console.error('API error response:', data);
         throw new Error(data.error || 'Failed to generate audio');
       }
 
@@ -389,9 +399,9 @@ if (!template || !duration || !aspectRatio || !style) {
       statusText.textContent = 'Voice generated successfully!';
       statusText.classList.add('text-green-500');
 
-      // Redirect to image generation
-      const params = new URLSearchParams(window.location.search);
-      window.location.href = `/image-generation?${params.toString()}`;
+      // Show audio preview
+      audioPreview.src = data.audioUrl;
+      audioPreviewSection.classList.remove('hidden');
 
     } catch (error) {
       console.error('Error generating voice:', error);
