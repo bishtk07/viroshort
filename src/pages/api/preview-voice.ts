@@ -3,7 +3,7 @@ import type { APIRoute } from 'astro';
 // Preview text to use for all voice previews
 const PREVIEW_TEXT = "Hello, this is a preview of this voice. This gives you an idea of how it sounds.";
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request }) => {
   try {
     // Parse request body
     const { voiceId } = await request.json();
@@ -23,22 +23,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Access environment variables from Cloudflare runtime
-    const ELEVENLABS_API_KEY = (locals as any).runtime?.env?.ELEVEN_LABS_API_KEY || 
-                              import.meta.env.ELEVEN_LABS_API_KEY || 
+    // Access environment variables with fallback
+    const ELEVENLABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
                               process.env.ELEVEN_LABS_API_KEY;
     
     if (!ELEVENLABS_API_KEY || ELEVENLABS_API_KEY === 'your_api_key_here') {
       console.error('ElevenLabs API key not properly configured');
-      console.log('Environment sources checked:', {
-        cloudflareRuntime: !!(locals as any).runtime?.env?.ELEVEN_LABS_API_KEY,
-        importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
-        processEnv: !!process.env.ELEVEN_LABS_API_KEY
-      });
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'ElevenLabs API key not configured. Please add your API key to Cloudflare Pages environment variables.' 
+          error: 'ElevenLabs API key not configured. Please add your API key to environment variables.' 
         }), 
         { 
           status: 500,

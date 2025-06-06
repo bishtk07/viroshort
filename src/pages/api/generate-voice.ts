@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request }) => {
   try {
     const { text, voiceId } = await request.json();
 
@@ -8,7 +8,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'Missing required parameters' 
+          error: 'Missing required parameters (text and voiceId)' 
         }),
         { 
           status: 400,
@@ -17,22 +17,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Access environment variables from Cloudflare runtime
-    const ELEVEN_LABS_API_KEY = (locals as any).runtime?.env?.ELEVEN_LABS_API_KEY || 
-                               import.meta.env.ELEVEN_LABS_API_KEY || 
+    // Access environment variables with fallback
+    const ELEVEN_LABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
                                process.env.ELEVEN_LABS_API_KEY;
     
     if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_api_key_here') {
       console.error('ElevenLabs API key not properly configured');
-      console.log('Environment sources checked:', {
-        cloudflareRuntime: !!(locals as any).runtime?.env?.ELEVEN_LABS_API_KEY,
-        importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
-        processEnv: !!process.env.ELEVEN_LABS_API_KEY
-      });
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'Voice generation service not properly configured. Please add your Eleven Labs API key to Cloudflare Pages environment variables.' 
+          error: 'Voice generation service not configured. Please check environment variables.' 
         }),
         { 
           status: 500,
@@ -41,7 +35,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    console.log('ElevenLabs API key found with length:', ELEVEN_LABS_API_KEY.length);
+    console.log('Generating voice audio:', { 
+      textLength: text.length,
+      voiceId,
+      apiKeyLength: ELEVEN_LABS_API_KEY.length
+    });
 
     // Clean the script by removing narrator directions
     const cleanScript = text.replace(/\((.*?)\)/g, '') // Remove text in parentheses
@@ -51,15 +49,22 @@ export const POST: APIRoute = async ({ request, locals }) => {
                           .replace(/["""]/g, '')       // Remove smart quotes
                           .trim();                     // Remove leading/trailing whitespace
 
-    console.log('Generating audio with:', { 
-      scriptLength: cleanScript.length,
-      voiceId,
-      wordCount: cleanScript.split(/\s+/).length
-    });
+    if (!cleanScript) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'No valid text content found after cleaning' 
+        }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     // Call ElevenLabs API to generate audio
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
         method: 'POST',
         headers: {
@@ -72,28 +77,30 @@ export const POST: APIRoute = async ({ request, locals }) => {
           model_id: 'eleven_monolingual_v1',
           voice_settings: {
             stability: 0.5,
-            similarity_boost: 0.75
+            similarity_boost: 0.75,
+            style: 0.0,
+            use_speaker_boost: true
           }
         })
       }
     );
 
     if (!response.ok) {
-      let errorMessage = 'Failed to generate audio';
+      let errorMessage = `ElevenLabs API error: ${response.status} ${response.statusText}`;
       try {
         const errorData = await response.json();
-        console.error('ElevenLabs API error:', errorData);
+        console.error('ElevenLabs API error response:', errorData);
         errorMessage = errorData.detail || errorData.message || errorMessage;
       } catch (e) {
-        console.error('Error parsing API error response:', e);
+        console.error('Could not parse error response:', e);
         const errorText = await response.text();
-        console.error('Raw API error response:', errorText);
+        console.error('Raw error response:', errorText);
       }
       
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: `Audio generation failed: ${errorMessage} (Status: ${response.status})`
+          error: errorMessage
         }),
         { 
           status: response.status,
@@ -106,10 +113,22 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const audioBuffer = await response.arrayBuffer();
     
     if (!audioBuffer || audioBuffer.byteLength === 0) {
-      throw new Error('Received empty audio data from API');
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Received empty audio data from ElevenLabs API' 
+        }),
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    console.log('Audio generated successfully, size:', audioBuffer.byteLength, 'bytes');
+    console.log('Voice audio generated successfully:', { 
+      audioSize: audioBuffer.byteLength,
+      textLength: cleanScript.length 
+    });
 
     // Convert to base64 for direct use
     const base64Audio = Buffer.from(audioBuffer).toString('base64');
@@ -123,7 +142,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       JSON.stringify({
         success: true,
         audioUrl,
-        duration: estimatedDuration
+        duration: estimatedDuration,
+        textLength: cleanScript.length,
+        wordCount
       }),
       {
         status: 200,
@@ -132,19 +153,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     );
 
   } catch (error) {
-    console.error('Audio generation error:', error);
-    let errorMessage = 'Failed to generate audio';
-    
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    } else if (typeof error === 'object' && error !== null) {
-      errorMessage = JSON.stringify(error);
-    }
-    
+    console.error('Voice generation error:', error);
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: errorMessage
+        error: `Voice generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       }),
       {
         status: 500,

@@ -15,23 +15,18 @@ interface ElevenLabsResponse {
   voices: ElevenLabsVoice[];
 }
 
-export const GET: APIRoute = async ({ locals }) => {
+export const GET: APIRoute = async () => {
   try {
-    // Access environment variables from Cloudflare runtime
-    const ELEVENLABS_API_KEY = (locals as any).runtime?.env?.ELEVEN_LABS_API_KEY || 
-                              import.meta.env.ELEVEN_LABS_API_KEY || 
+    // Access environment variables with fallback
+    const ELEVENLABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY || 
                               process.env.ELEVEN_LABS_API_KEY;
     
     if (!ELEVENLABS_API_KEY || ELEVENLABS_API_KEY === 'your_api_key_here') {
       console.error('ElevenLabs API key not properly configured');
-      console.log('Environment sources checked:', {
-        cloudflareRuntime: !!(locals as any).runtime?.env?.ELEVEN_LABS_API_KEY,
-        importMeta: !!import.meta.env.ELEVEN_LABS_API_KEY,
-        processEnv: !!process.env.ELEVEN_LABS_API_KEY
-      });
       return new Response(
         JSON.stringify({ 
-          error: 'ElevenLabs API key not configured. Please add your API key to Cloudflare Pages environment variables.' 
+          error: 'ElevenLabs API key not configured. Please add your API key to environment variables.',
+          success: false
         }), 
         { 
           status: 500,
@@ -59,7 +54,8 @@ export const GET: APIRoute = async ({ locals }) => {
       return new Response(
         JSON.stringify({ 
           error: `Failed to fetch voices from ElevenLabs: ${response.status} ${response.statusText}`,
-          details: errorText
+          details: errorText,
+          success: false
         }), 
         { 
           status: response.status,
@@ -76,7 +72,8 @@ export const GET: APIRoute = async ({ locals }) => {
       console.error('Invalid response format from ElevenLabs:', data);
       return new Response(
         JSON.stringify({ 
-          error: 'Invalid response format from ElevenLabs API' 
+          error: 'Invalid response format from ElevenLabs API',
+          success: false
         }), 
         { 
           status: 500,
@@ -91,6 +88,7 @@ export const GET: APIRoute = async ({ locals }) => {
 
     return new Response(
       JSON.stringify({
+        success: true,
         voices: data.voices.map((voice: ElevenLabsVoice) => ({
           voice_id: voice.voice_id,
           name: voice.name,
@@ -110,7 +108,8 @@ export const GET: APIRoute = async ({ locals }) => {
     return new Response(
       JSON.stringify({ 
         error: 'Failed to fetch voices',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        success: false
       }), 
       { 
         status: 500,

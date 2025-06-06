@@ -27,151 +27,410 @@ const TEMPLATE_TO_STYLE_MAP = {
 // Determine style based on template
 const style = TEMPLATE_TO_STYLE_MAP[template] || 'photorealism';
 
-console.log('Voice selection received params:', { template, duration, aspectRatio, script, style }); // Debug log
+console.log('Voice selection received params:', { template, duration, aspectRatio, script, style });
 
 // Redirect if missing parameters
 if (!template || !duration || !aspectRatio || !script) {
-  console.log('Missing required parameters, redirecting...'); // Debug log
+  console.log('Missing required parameters, redirecting...');
   return Astro.redirect('/?error=Missing required parameters');
 }
 ---
 
 <Layout title="Select Voice">
-  <main class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto">
-      <div class="text-center mb-12">
+  <main class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-6xl mx-auto">
+      <!-- Header -->
+      <div class="text-center mb-8">
         <h1 class="text-4xl font-bold text-gray-900 mb-4">Select a Voice</h1>
-        <p class="text-xl text-gray-600">Choose a voice for your story</p>
+        <p class="text-xl text-gray-600 max-w-2xl mx-auto">Choose a voice that brings your story to life. Preview each voice before making your selection.</p>
       </div>
 
-      <!-- Script Editor Section -->
-      <div class="max-w-3xl mx-auto mb-8 bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Your Script</h2>
-        <div class="mb-4">
-          <textarea
-            id="scriptEditor"
-            class="w-full h-32 p-4 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Your script will appear here..."
-          ></textarea>
+      <!-- Script Preview Card -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Your Script
+        </h2>
+        <div class="bg-gray-50 rounded-lg p-4 max-h-40 overflow-y-auto">
+          <p id="scriptPreview" class="text-gray-700 leading-relaxed"></p>
         </div>
-        <div class="flex justify-end">
+        <div class="mt-4 flex justify-end">
           <button
-            id="updateScript"
-            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            id="editScriptBtn"
+            class="px-4 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
           >
-            Update Script
+            Edit Script
           </button>
         </div>
       </div>
 
-      <!-- Voice Selection Section -->
-      <div class="max-w-3xl mx-auto">
-        <div class="bg-white rounded-lg shadow">
-          <div class="p-4">
-            <div class="flex space-x-4 mb-6">
-              <button
-                id="allVoicesBtn"
-                class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200"
-              >
-                All Voices
-              </button>
-              <button
-                id="premiumVoicesBtn"
-                class="px-4 py-2 text-gray-600 rounded-full hover:bg-gray-100"
-              >
-                Premium Voices
-              </button>
-            </div>
-
-            <div id="voiceGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <!-- Voice options will be populated here -->
-            </div>
+      <!-- Voice Selection -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-gray-900">Choose a Voice</h2>
+          <div class="flex space-x-2">
+            <button
+              id="allVoicesBtn"
+              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              All Voices
+            </button>
+            <button
+              id="premiumVoicesBtn"
+              class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Premium Only
+            </button>
           </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="voicesLoading" class="text-center py-12">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p class="text-gray-600">Loading voices...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="voicesError" class="hidden bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+          <div class="text-red-600 mb-4">
+            <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p id="voicesErrorMessage" class="text-lg font-medium">Failed to load voices</p>
+          </div>
+          <button
+            id="retryVoicesBtn"
+            class="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+
+        <!-- Voice Grid -->
+        <div id="voiceGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Voices will be populated here -->
         </div>
       </div>
 
-      <!-- Audio Preview Section -->
-      <div id="audioPreviewSection" class="max-w-3xl mx-auto mt-8 bg-white rounded-lg shadow p-6 hidden">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Preview</h2>
-        <audio id="audioPreview" controls class="w-full mb-4"></audio>
-        <p id="generationStatus" class="text-gray-600 text-center"></p>
-        <div class="flex justify-between mt-4">
+      <!-- Continue Section -->
+      <div id="continueSection" class="hidden bg-white rounded-xl shadow-lg p-6 text-center">
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Ready to generate audio?</h3>
+          <p class="text-gray-600">Voice selected: <span id="selectedVoiceName" class="font-medium text-blue-600"></span></p>
+        </div>
+        <div class="flex justify-center space-x-4">
           <button
             onclick="window.history.back()"
-            class="px-4 py-2 text-gray-600 hover:text-gray-800"
+            class="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Go Back
           </button>
           <button
-            id="continueButton"
-            class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400"
-            disabled
+            id="generateAudioBtn"
+            class="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
           >
-            Continue to Image Generation
+            Generate Audio & Continue
           </button>
+        </div>
+      </div>
+
+      <!-- Audio Preview Modal -->
+      <div id="audioPreviewModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Audio Preview</h3>
+            <button id="closePreviewBtn" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="audioGenerationStatus" class="text-center py-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+            <p class="text-gray-600">Generating audio preview...</p>
+          </div>
+          <audio id="audioPreviewPlayer" controls class="w-full hidden"></audio>
         </div>
       </div>
     </div>
   </main>
 </Layout>
 
+<style>
+  .voice-card {
+    transition: all 0.2s ease;
+  }
+  .voice-card:hover {
+    transform: translateY(-2px);
+  }
+  .voice-card.selected {
+    ring: 2px;
+    ring-color: rgb(59 130 246);
+    border-color: rgb(59 130 246);
+  }
+</style>
+
 <script define:vars={{ style, template, duration, aspectRatio, script }}>
-  // Debug log
-  console.log('Voice selection params:', { template, duration, script, aspectRatio, style });
+  console.log('Voice selection initialized with:', { template, duration, script, aspectRatio, style });
 
   if (!template || !duration || !script || !aspectRatio) {
     window.location.href = '/error?message=Missing required parameters';
+    throw new Error('Missing required parameters');
   }
 
+  let voices = [];
   let selectedVoice = null;
-  let audioPreview = null;
+  let showingPremiumOnly = false;
 
-  window.selectVoice = async function(voiceId) {
+  // Initialize the page
+  document.addEventListener('DOMContentLoaded', () => {
+    initializePage();
+  });
+
+  function initializePage() {
+    // Set script preview
+    document.getElementById('scriptPreview').textContent = script;
+    
+    // Load voices
+    loadVoices();
+    
+    // Set up event listeners
+    setupEventListeners();
+  }
+
+  function setupEventListeners() {
+    // Voice filter buttons
+    document.getElementById('allVoicesBtn').addEventListener('click', () => filterVoices(false));
+    document.getElementById('premiumVoicesBtn').addEventListener('click', () => filterVoices(true));
+    
+    // Retry button
+    document.getElementById('retryVoicesBtn').addEventListener('click', loadVoices);
+    
+    // Generate audio button
+    document.getElementById('generateAudioBtn').addEventListener('click', generateAudioAndProceed);
+    
+    // Close preview modal
+    document.getElementById('closePreviewBtn').addEventListener('click', closePreviewModal);
+    
+    // Close modal on background click
+    document.getElementById('audioPreviewModal').addEventListener('click', (e) => {
+      if (e.target.id === 'audioPreviewModal') {
+        closePreviewModal();
+      }
+    });
+  }
+
+  async function loadVoices() {
     try {
-      selectedVoice = voiceId;
+      showLoadingState();
       
-      // Update selected state for all voice cards
-      document.querySelectorAll('.voice-card').forEach(card => {
-        card.classList.remove('border-blue-500');
-        card.classList.add('border-gray-200');
-      });
-
-      // Update selected voice card
-      const selectedCard = document.getElementById(`voice-${voiceId}`);
-      if (selectedCard) {
-        selectedCard.classList.remove('border-gray-200');
-        selectedCard.classList.add('border-blue-500');
+      const response = await fetch('/api/get-voices');
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load voices');
       }
-
-      // Enable continue button
-      const continueBtn = document.getElementById('continueBtn');
-      if (continueBtn) {
-        continueBtn.disabled = false;
-        continueBtn.textContent = 'Generate Audio';
+      
+      voices = data.voices || [];
+      console.log('Loaded voices:', voices.length);
+      
+      if (voices.length === 0) {
+        throw new Error('No voices available');
       }
-
-      console.log('Voice selected:', voiceId);
+      
+      renderVoices();
+      hideLoadingState();
+      
     } catch (error) {
-      console.error('Error selecting voice:', error);
-      alert('Failed to select voice. Please try again.');
+      console.error('Error loading voices:', error);
+      showErrorState(error.message);
     }
   }
 
-  window.generateAudioAndProceed = async function() {
+  function showLoadingState() {
+    document.getElementById('voicesLoading').classList.remove('hidden');
+    document.getElementById('voicesError').classList.add('hidden');
+    document.getElementById('voiceGrid').classList.add('hidden');
+  }
+
+  function hideLoadingState() {
+    document.getElementById('voicesLoading').classList.add('hidden');
+    document.getElementById('voicesError').classList.add('hidden');
+    document.getElementById('voiceGrid').classList.remove('hidden');
+  }
+
+  function showErrorState(message) {
+    document.getElementById('voicesLoading').classList.add('hidden');
+    document.getElementById('voiceGrid').classList.add('hidden');
+    document.getElementById('voicesError').classList.remove('hidden');
+    document.getElementById('voicesErrorMessage').textContent = message;
+  }
+
+  function filterVoices(premiumOnly) {
+    showingPremiumOnly = premiumOnly;
+    
+    // Update button styles
+    const allBtn = document.getElementById('allVoicesBtn');
+    const premiumBtn = document.getElementById('premiumVoicesBtn');
+    
+    if (premiumOnly) {
+      allBtn.className = 'px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors';
+      premiumBtn.className = 'px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors';
+    } else {
+      allBtn.className = 'px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors';
+      premiumBtn.className = 'px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors';
+    }
+    
+    renderVoices();
+  }
+
+  function renderVoices() {
+    const grid = document.getElementById('voiceGrid');
+    const filteredVoices = showingPremiumOnly 
+      ? voices.filter(voice => voice.labels?.premium || voice.name.toLowerCase().includes('premium'))
+      : voices;
+    
+    if (filteredVoices.length === 0) {
+      grid.innerHTML = `
+        <div class="col-span-full text-center py-12">
+          <p class="text-gray-600">No voices found in this category.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    grid.innerHTML = filteredVoices.map(voice => createVoiceCard(voice)).join('');
+  }
+
+  function createVoiceCard(voice) {
+    const isPremium = voice.labels?.premium || voice.name.toLowerCase().includes('premium');
+    const accent = voice.labels?.accent || 'unknown';
+    const gender = voice.labels?.gender || 'unknown';
+    
+    return `
+      <div class="voice-card bg-white border-2 border-gray-200 rounded-xl p-6 cursor-pointer transition-all duration-200 hover:shadow-lg" 
+           data-voice-id="${voice.voice_id}" 
+           onclick="selectVoice('${voice.voice_id}', '${voice.name}')">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">${voice.name}</h3>
+            <div class="flex items-center gap-2 mt-1">
+              ${gender !== 'unknown' ? `<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm">${gender}</span>` : ''}
+              ${accent !== 'unknown' ? `<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">${accent}</span>` : ''}
+            </div>
+          </div>
+          ${isPremium ? '<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-sm font-medium">⭐ Premium</span>' : ''}
+        </div>
+        
+        <div class="space-y-3">
+          <button class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                  onclick="event.stopPropagation(); previewVoice('${voice.voice_id}', '${voice.name}')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Preview Voice
+          </button>
+          
+          <div class="voice-selection-indicator hidden">
+            <div class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              Selected
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function selectVoice(voiceId, voiceName) {
+    selectedVoice = voiceId;
+    
+    // Update visual selection
+    document.querySelectorAll('.voice-card').forEach(card => {
+      card.classList.remove('selected');
+      const indicator = card.querySelector('.voice-selection-indicator');
+      if (indicator) indicator.classList.add('hidden');
+    });
+    
+    const selectedCard = document.querySelector(`[data-voice-id="${voiceId}"]`);
+    if (selectedCard) {
+      selectedCard.classList.add('selected');
+      const indicator = selectedCard.querySelector('.voice-selection-indicator');
+      if (indicator) indicator.classList.remove('hidden');
+    }
+    
+    // Show continue section
+    document.getElementById('selectedVoiceName').textContent = voiceName;
+    document.getElementById('continueSection').classList.remove('hidden');
+    
+    console.log('Voice selected:', { voiceId, voiceName });
+  }
+
+  async function previewVoice(voiceId, voiceName) {
+    try {
+      // Show preview modal
+      document.getElementById('audioPreviewModal').classList.remove('hidden');
+      document.getElementById('audioGenerationStatus').classList.remove('hidden');
+      document.getElementById('audioPreviewPlayer').classList.add('hidden');
+      
+      const response = await fetch('/api/preview-voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voiceId })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to generate preview');
+      }
+      
+      // Show audio player
+      const audioPlayer = document.getElementById('audioPreviewPlayer');
+      audioPlayer.src = data.audioUrl;
+      audioPlayer.classList.remove('hidden');
+      document.getElementById('audioGenerationStatus').classList.add('hidden');
+      
+      // Auto-play the preview
+      audioPlayer.play().catch(e => console.log('Autoplay prevented:', e));
+      
+    } catch (error) {
+      console.error('Error previewing voice:', error);
+      alert(`Failed to preview voice: ${error.message}`);
+      closePreviewModal();
+    }
+  }
+
+  function closePreviewModal() {
+    const modal = document.getElementById('audioPreviewModal');
+    const audioPlayer = document.getElementById('audioPreviewPlayer');
+    
+    // Stop audio
+    audioPlayer.pause();
+    audioPlayer.src = '';
+    
+    // Hide modal
+    modal.classList.add('hidden');
+  }
+
+  async function generateAudioAndProceed() {
     if (!selectedVoice) {
       alert('Please select a voice first');
       return;
     }
 
-    // Show loading state
-    const continueBtn = document.getElementById('continueBtn');
-    continueBtn.disabled = true;
-    continueBtn.textContent = 'Generating Audio...';
+    const btn = document.getElementById('generateAudioBtn');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Generating Audio...';
 
     try {
-      console.log('Generating audio with params:', { text: script, voiceId: selectedVoice });
-
-      const response = await fetch('/api/generate-audio', {
+      const response = await fetch('/api/generate-voice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -181,218 +440,32 @@ if (!template || !duration || !aspectRatio || !script) {
       });
 
       const data = await response.json();
-      console.log('Audio generation response:', data);
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Audio generation failed');
-      }
 
       if (!data.success) {
         throw new Error(data.error || 'Audio generation failed');
       }
 
-      if (!data.audioUrl) {
-        throw new Error('No audio URL received');
-      }
-
-      // Show audio preview
-      const audioPreviewSection = document.getElementById('audioPreviewSection');
-      const audioPlayer = document.getElementById('generatedAudioPlayer');
-      audioPreviewSection.classList.remove('hidden');
-      audioPlayer.src = data.audioUrl;
-
-      // Wait for audio metadata to load to get actual duration
-      audioPlayer.addEventListener('loadedmetadata', () => {
-        const actualDuration = Math.ceil(audioPlayer.duration);
-        console.log('Actual audio duration:', actualDuration);
-        localStorage.setItem('actualAudioDuration', actualDuration.toString());
+      // Navigate to next step with audio data
+      const params = new URLSearchParams({
+        template,
+        duration,
+        aspectRatio,
+        script,
+        voiceId: selectedVoice,
+        audioUrl: data.audioUrl,
+        audioDuration: data.duration,
+        style
       });
 
-      audioPlayer.play().catch(console.error);
+      window.location.href = `/video-generation?${params.toString()}`;
 
-      // Store the audio URL and script in localStorage
-      localStorage.setItem('generatedAudioUrl', data.audioUrl);
-      localStorage.setItem('generatedScript', script);
-
-      // Update button state and handler
-      continueBtn.disabled = false;
-      continueBtn.textContent = 'Continue to Image Generation';
-      continueBtn.onclick = function() {
-        const actualDuration = localStorage.getItem('actualAudioDuration');
-        if (!actualDuration) {
-          alert('Please wait for audio to load completely');
-          return;
-        }
-
-        // Store style in localStorage to ensure it's available for image generation
-        localStorage.setItem('selectedStyle', style);
-
-        const params = new URLSearchParams({
-          template,
-          duration: actualDuration,
-          aspectRatio,
-          style
-        });
-
-        window.location.href = `/image-generation?${params.toString()}`;
-      };
     } catch (error) {
-      console.error('Audio generation error:', error);
-      continueBtn.disabled = false;
-      continueBtn.textContent = 'Generate Audio';
-      alert(error.message || 'Failed to generate audio. Please try again.');
+      console.error('Error generating audio:', error);
+      alert(`Failed to generate audio: ${error.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
     }
   }
-
-  // Initialize voice selection
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('continueBtn').disabled = true;
-  });
-
-  let audioPlayer = null;
-  let isGenerating = false;
-
-  // Get DOM elements
-  const voiceGrid = document.getElementById('voiceGrid');
-  const backButton = document.getElementById('backButton');
-
-  // Handle back button click
-  if (backButton) {
-    backButton.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.history.back();
-    });
-  }
-
-  // Play voice preview
-  window.playPreview = function(previewUrl) {
-    try {
-      if (audioPlayer) {
-        audioPlayer.pause();
-        audioPlayer = null;
-      }
-      
-      audioPlayer = new Audio(previewUrl);
-      audioPlayer.play().catch(error => {
-        console.error('Error playing preview:', error);
-        alert('Failed to play voice preview');
-      });
-    } catch (error) {
-      console.error('Error playing preview:', error);
-      alert('Failed to play voice preview');
-    }
-  }
-
-  // Load available voices
-  async function loadVoices() {
-    try {
-      console.log('Loading voices...'); // Debug log
-      const response = await fetch('/api/get-voices');
-      
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || `Failed to load voices: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Received voices:', data); // Debug log
-
-      if (!data.voices || !Array.isArray(data.voices)) {
-        throw new Error('Invalid voice data received');
-      }
-
-      if (!voiceGrid) {
-        throw new Error('Voice grid element not found');
-      }
-
-      voiceGrid.innerHTML = ''; // Clear loading state
-
-      if (data.voices.length === 0) {
-        voiceGrid.innerHTML = `
-          <div class="col-span-full text-center">
-            <p class="text-gray-600">No voices available. Please try again later.</p>
-          </div>
-        `;
-        return;
-      }
-
-      data.voices.forEach(voice => {
-        const voiceCard = document.createElement('div');
-        voiceCard.id = `voice-${voice.voice_id}`;
-        voiceCard.className = 'voice-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 border-2 border-gray-200';
-        voiceCard.innerHTML = `
-          <div class="p-6">
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">${voice.name}</h3>
-            <div class="flex justify-between items-center mb-4">
-              <span class="text-gray-600">${voice.labels?.accent || 'English'}</span>
-              <span class="text-gray-600">${voice.labels?.gender || 'Neutral'}</span>
-            </div>
-            <div class="flex flex-col gap-2">
-              <button
-                onclick="window.playPreview('${voice.preview_url}')"
-                class="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Preview Voice
-              </button>
-              <button
-                onclick="window.selectVoice('${voice.voice_id}')"
-                class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Select Voice
-              </button>
-            </div>
-          </div>
-        `;
-        voiceGrid.appendChild(voiceCard);
-      });
-    } catch (error) {
-      console.error('Error loading voices:', error);
-      if (voiceGrid) {
-        voiceGrid.innerHTML = `
-          <div class="col-span-full text-center">
-            <p class="text-red-500 mb-4">Failed to load voices: ${error.message}</p>
-            <button
-              onclick="loadVoices()"
-              class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        `;
-      }
-    }
-  }
-
-  // Load voices when the page loads
-  loadVoices();
-
-  // Get script from localStorage
-  const script = localStorage.getItem('generatedScript');
-  if (!script) {
-    window.location.href = '/?error=No script found';
-  }
-
-  // Initialize script editor
-  const scriptEditor = document.getElementById('scriptEditor');
-  if (scriptEditor) {
-    scriptEditor.value = script;
-  }
-
-  // Handle script update
-  const updateScriptBtn = document.getElementById('updateScript');
-  updateScriptBtn?.addEventListener('click', () => {
-    if (scriptEditor) {
-      localStorage.setItem('generatedScript', scriptEditor.value);
-      // Show success message
-      const successMessage = document.createElement('div');
-      successMessage.className = 'text-green-600 text-sm mt-2';
-      successMessage.textContent = 'Script updated successfully!';
-      updateScriptBtn.parentElement?.appendChild(successMessage);
-      setTimeout(() => successMessage.remove(), 2000);
-    }
-  });
-</script>
-
-<style>
-  /* ... existing styles ... */
+</script> 
 </style> 
