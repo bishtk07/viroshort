@@ -15,11 +15,27 @@ export const POST: APIRoute = async ({ request }) => {
     const topic = prompt || template;
     const targetDuration = duration || 60;
 
+    // Check if API key is available
+    const OPENAI_API_KEY = import.meta.env.OPENAI_API_KEY;
+
+    if (!OPENAI_API_KEY) {
+      console.error('OpenAI API key not found');
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'OpenAI API key not configured. Please check environment variables.' 
+        }),
+        { status: 500 }
+      );
+    }
+
+    console.log('OpenAI API key found with length:', OPENAI_API_KEY.length);
+
     // Use fetch instead of OpenAI SDK
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${import.meta.env.OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -52,7 +68,7 @@ IMPORTANT: Return ONLY the script text as a plain string, no JSON formatting, no
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
+      console.error('OpenAI API error:', response.status, errorText);
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
