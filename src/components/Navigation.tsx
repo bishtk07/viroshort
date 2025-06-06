@@ -29,24 +29,24 @@ export const Navigation: React.FC = () => {
           <nav className="flex-1">
             <ul className="space-y-2">
               <NavItem href="/" icon="🏠" label="Home" />
-              <NavItem href="/create" icon="✨" label="Create" />
-              <NavItem href="/tools" icon="🛠" label="Tools" />
               <NavItem href="/guides" icon="📚" label="Guides" />
               <NavItem href="/billing" icon="💳" label="Billing" />
             </ul>
           </nav>
 
           {/* Account Section */}
-          <div className="pt-4 border-t border-gray-200">
-            <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                👤
+          <div className="border-t border-gray-200 pt-4">
+            <a href="/profile" className="block">
+              <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                  👤
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">User Profile</p>
+                  <p className="text-xs text-gray-600">Manage settings</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">User Account</p>
-                <p className="text-xs text-gray-600">Manage settings</p>
-              </div>
-            </div>
+            </a>
           </div>
         </div>
       </div>
