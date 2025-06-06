@@ -2,11 +2,20 @@ name = "viroshort"
 compatibility_date = "2024-01-15"
 pages_build_output_dir = "dist"
 
+# Node.js compatibility for your dependencies
+compatibility_flags = ["nodejs_compat"]
+
 [env.production]
 name = "viroshort"
+# Environment variables for production
+[env.production.vars]
+NODE_ENV = "production"
 
 [env.preview]
 name = "viroshort-preview"
+# Environment variables for preview
+[env.preview.vars]
+NODE_ENV = "preview"
 
 [[env.production.bindings]]
 name = "DB"
@@ -14,11 +23,4 @@ type = "d1"
 
 [[env.preview.bindings]]
 name = "DB" 
-type = "d1"
-
-# Node.js compatibility for your dependencies
-compatibility_flags = ["nodejs_compat"]
-
-# Environment variables (these will be set in Cloudflare dashboard)
-[vars]
-NODE_ENV = "production" 
+type = "d1" 

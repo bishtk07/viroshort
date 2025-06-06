@@ -26,15 +26,16 @@ export default defineConfig({
   },
   vite: {
     ssr: {
+      external: ['replicate', 'openai', 'elevenlabs'],
       noExternal: ['@supabase/supabase-js']
     },
     build: {
       rollupOptions: {
+        external: ['replicate', 'openai', 'elevenlabs'],
         output: {
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
-            'openai': ['openai'],
-            'replicate': ['replicate'],
+            'supabase': ['@supabase/supabase-js']
           }
         }
       }
