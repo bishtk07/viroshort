@@ -26,19 +26,19 @@ if (!template || !duration || !aspectRatio || !script) {
 ---
 
 <Layout title="Select Voice - ViroShort">
-  <div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+  <div class="min-h-screen bg-gray-50">
     <!-- Header -->
-    <div class="border-b border-white/10 bg-black/20 backdrop-blur-sm">
+    <div class="border-b border-gray-200 bg-white">
       <div class="container mx-auto px-4 py-6">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-2xl font-bold text-white">Voice Selection</h1>
-            <div class="flex items-center mt-2 text-sm text-gray-300">
-              <span class="bg-purple-600 text-white px-2 py-1 rounded-full text-xs font-medium">Step 2</span>
+            <h1 class="text-2xl font-bold text-gray-900">Voice Selection</h1>
+            <div class="flex items-center mt-2 text-sm text-gray-600">
+              <span class="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">Step 2</span>
               <span class="ml-2">Choose your perfect voice</span>
             </div>
           </div>
-          <a href="/create" class="text-gray-400 hover:text-white transition-colors">
+          <a href="/create" class="text-gray-400 hover:text-gray-600 transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -49,22 +49,22 @@ if (!template || !duration || !aspectRatio || !script) {
 
     <div class="container mx-auto px-4 py-8">
       <!-- Script Preview Card -->
-      <div class="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 mb-8">
-        <h2 class="text-lg font-semibold text-white mb-3">Script Preview</h2>
-        <div class="bg-black/20 rounded-lg p-4 max-h-32 overflow-y-auto">
-          <p id="script-preview" class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap"></p>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-8">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Script Preview</h2>
+        <div class="bg-gray-50 rounded-lg p-4 max-h-32 overflow-y-auto">
+          <p id="script-preview" class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap"></p>
         </div>
-        <div class="flex items-center justify-between mt-4 text-sm text-gray-400">
-          <span>Template: <span class="text-purple-400 capitalize">{template}</span></span>
-          <span>Duration: <span class="text-purple-400">{duration}s</span></span>
-          <span>Aspect: <span class="text-purple-400">{aspectRatio}</span></span>
+        <div class="flex items-center justify-between mt-4 text-sm text-gray-600">
+          <span>Template: <span class="text-blue-600 capitalize">{template}</span></span>
+          <span>Duration: <span class="text-blue-600">{duration}s</span></span>
+          <span>Aspect: <span class="text-blue-600">{aspectRatio}</span></span>
         </div>
       </div>
 
       <!-- Voice Selection Section -->
-      <div class="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-semibold text-white">Choose Your Voice</h2>
+          <h2 class="text-xl font-semibold text-gray-900">Choose Your Voice</h2>
           
           <!-- Filter Buttons -->
           <div class="flex gap-2">
@@ -79,44 +79,44 @@ if (!template || !duration || !aspectRatio || !script) {
 
         <!-- Loading State -->
         <div id="voices-loading" class="text-center py-12">
-          <div class="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p class="text-gray-400">Loading voices...</p>
+          <div class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p class="text-gray-600">Loading voices...</p>
         </div>
 
         <!-- Error State -->
         <div id="voices-error" class="hidden text-center py-12">
-          <div class="text-red-400 text-xl mb-4">⚠️</div>
-          <p id="error-message" class="text-red-400 mb-4">Failed to load voices</p>
-          <button id="retry-voices" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+          <div class="text-red-500 text-xl mb-4">⚠️</div>
+          <p id="error-message" class="text-red-500 mb-4">Failed to load voices</p>
+          <button id="retry-voices" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
             Try Again
           </button>
         </div>
 
         <!-- Voices Grid -->
-        <div id="voices-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <div id="voices-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
           <!-- Voice cards will be populated here -->
         </div>
 
         <!-- Continue Section -->
         <div id="continue-section" class="hidden">
-          <div class="border-t border-white/10 pt-6">
+          <div class="border-t border-gray-200 pt-6">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-4">
-                <div class="bg-green-500/20 text-green-400 p-2 rounded-lg">
+                <div class="bg-green-100 text-green-600 p-2 rounded-lg">
                   <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                   </svg>
                 </div>
                 <div>
-                  <p class="text-white font-medium">Voice Selected</p>
-                  <p id="selected-voice-name" class="text-gray-400 text-sm"></p>
+                  <p class="text-gray-900 font-medium">Voice Selected</p>
+                  <p id="selected-voice-name" class="text-gray-600 text-sm"></p>
                 </div>
               </div>
               <div class="flex items-center gap-4">
-                <button id="back-to-voices" class="text-gray-400 hover:text-white transition-colors">
+                <button id="back-to-voices" class="text-gray-600 hover:text-gray-900 transition-colors">
                   Change Voice
                 </button>
-                <button id="generate-audio-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors">
+                <button id="generate-audio-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors">
                   <span id="default-text">Generate Audio</span>
                   <span id="generating-text" class="hidden">
                     <svg class="animate-spin -ml-1 mr-2 h-4 w-4 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -135,10 +135,10 @@ if (!template || !duration || !aspectRatio || !script) {
 
     <!-- Audio Preview Modal -->
     <div id="audio-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-white/10 backdrop-blur-md rounded-xl border border-white/20 p-6 max-w-md w-full">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-6 max-w-md w-full">
         <div class="flex items-center justify-between mb-4">
-          <h3 id="modal-voice-name" class="text-lg font-semibold text-white"></h3>
-          <button id="close-modal" class="text-gray-400 hover:text-white">
+          <h3 id="modal-voice-name" class="text-lg font-semibold text-gray-900"></h3>
+          <button id="close-modal" class="text-gray-400 hover:text-gray-600">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -147,19 +147,19 @@ if (!template || !duration || !aspectRatio || !script) {
         
         <!-- Preview Loading -->
         <div id="preview-loading" class="text-center py-8">
-          <div class="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p class="text-gray-300">Generating preview...</p>
+          <div class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p class="text-gray-600">Generating preview...</p>
         </div>
 
         <!-- Preview Error -->
         <div id="preview-error" class="hidden text-center py-8">
-          <div class="text-red-400 text-xl mb-4">⚠️</div>
-          <p class="text-red-400">Failed to generate preview</p>
+          <div class="text-red-500 text-xl mb-4">⚠️</div>
+          <p class="text-red-500">Failed to generate preview</p>
         </div>
         
         <!-- Audio Player -->
         <div id="audio-player-container" class="hidden">
-          <div class="bg-black/20 rounded-lg p-4 mb-4">
+          <div class="bg-gray-50 rounded-lg p-4 mb-4">
             <audio id="preview-audio" controls class="w-full">
               <source type="audio/mpeg">
               Your browser does not support the audio element.
@@ -168,10 +168,10 @@ if (!template || !duration || !aspectRatio || !script) {
           
           <!-- Modal Actions -->
           <div class="flex gap-3">
-            <button id="replay-audio" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors">
+            <button id="replay-audio" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors">
               Replay
             </button>
-            <button id="select-voice-btn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition-colors">
+            <button id="select-voice-btn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg transition-colors">
               Select This Voice
             </button>
           </div>
@@ -182,31 +182,126 @@ if (!template || !duration || !aspectRatio || !script) {
 
   <style>
     .voice-filter-btn {
-      @apply px-4 py-2 rounded-lg border border-white/20 text-gray-300 hover:text-white hover:border-white/40 transition-all;
+      @apply px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:text-gray-900 hover:border-gray-400 transition-all;
     }
     
     .voice-filter-btn.active {
-      @apply bg-purple-600 text-white border-purple-600;
+      @apply bg-blue-500 text-white border-blue-500;
     }
     
     .voice-card {
-      @apply bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4 hover:bg-white/10 hover:border-purple-500/50 transition-all cursor-pointer relative;
+      @apply relative bg-white rounded-xl border-2 border-gray-200 p-6 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md;
+    }
+    
+    .voice-card:hover {
+      @apply border-blue-300 transform scale-105;
     }
     
     .voice-card.selected {
-      @apply bg-purple-600/20 border-purple-500 ring-2 ring-purple-500/50;
+      @apply border-blue-500 bg-blue-50 shadow-lg ring-2 ring-blue-200;
     }
     
-    .voice-attribute {
-      @apply inline-block bg-white/10 text-xs px-2 py-1 rounded-full text-gray-300;
+    /* Voice Header */
+    .voice-header {
+      @apply flex items-start justify-between mb-4;
     }
     
+    .voice-info {
+      @apply flex-1;
+    }
+    
+    .voice-name {
+      @apply text-lg font-bold text-gray-900 mb-1;
+    }
+    
+    .voice-icon {
+      @apply opacity-50 group-hover:opacity-100 transition-opacity;
+    }
+    
+    /* Badges */
     .premium-badge {
-      @apply bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-medium;
+      @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-yellow-400 to-orange-500 text-black;
     }
-
-    .preview-button {
-      @apply bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm transition-colors;
+    
+    .free-badge {
+      @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800;
+    }
+    
+    /* Voice Description */
+    .voice-description {
+      @apply mb-4;
+    }
+    
+    .description-text {
+      @apply text-sm text-gray-600 mb-2 capitalize;
+    }
+    
+    .voice-attributes {
+      @apply flex flex-wrap gap-1;
+    }
+    
+    .attribute-tag {
+      @apply inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full border;
+    }
+    
+    /* Voice Actions */
+    .voice-actions {
+      @apply flex gap-2 mb-4;
+    }
+    
+    .preview-btn {
+      @apply flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors;
+    }
+    
+    .select-btn {
+      @apply flex items-center gap-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors flex-1 justify-center;
+    }
+    
+    /* Selection Indicator */
+    .selection-indicator {
+      @apply absolute top-3 right-3 w-6 h-6 bg-blue-500 text-white rounded-full items-center justify-center hidden;
+    }
+    
+    .voice-card.selected .selection-indicator {
+      @apply flex;
+    }
+    
+    .voice-card.selected .select-btn {
+      @apply bg-green-500 hover:bg-green-600;
+    }
+    
+    .voice-card.selected .voice-name {
+      @apply text-blue-700;
+    }
+    
+    /* Responsive Grid */
+    #voices-grid {
+      @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6;
+    }
+    
+    /* Voice Card Animations */
+    .voice-card {
+      animation: fadeInUp 0.3s ease-out;
+    }
+    
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* Loading state improvements */
+    #voices-loading {
+      @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    }
+    
+    #voices-error {
+      @apply bg-white rounded-xl border border-red-200 shadow-sm;
     }
   </style>
 
@@ -361,13 +456,41 @@ if (!template || !duration || !aspectRatio || !script) {
       
       // Add click listeners to voice cards
       grid.querySelectorAll('.voice-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-          // Don't select if clicking preview button
-          if (e.target.closest('.preview-button')) return;
-          
+        // Handle voice selection via select button or card click
+        const selectBtn = card.querySelector('.select-btn');
+        const previewBtn = card.querySelector('.preview-btn');
+        
+        const handleSelect = () => {
           const voiceId = card.dataset.voiceId;
           const voiceName = card.dataset.voiceName;
           selectVoice(voiceId, voiceName);
+        };
+        
+        // Select voice when clicking the select button
+        selectBtn?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          handleSelect();
+        });
+        
+        // Also allow selecting by clicking the card itself
+        card.addEventListener('click', (e) => {
+          // Don't select if clicking preview button
+          if (e.target.closest('.preview-btn')) return;
+          handleSelect();
+        });
+        
+        // Handle preview button (temporarily disabled)
+        previewBtn?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          
+          // Temporarily disable preview due to API issues
+          alert('Voice preview is temporarily unavailable. Please select a voice to continue.');
+          
+          // TODO: Re-enable when API key issues are resolved
+          /*
+          const voiceId = card.dataset.voiceId;
+          previewVoice(voiceId);
+          */
         });
         
         // Highlight previously selected voice if any
@@ -376,59 +499,6 @@ if (!template || !duration || !aspectRatio || !script) {
           updateContinueSection();
           console.log('🎭 Restored UI selection for voice:', selectedVoice.name);
         }
-      });
-      
-      // Add preview button listeners
-      grid.querySelectorAll('.preview-button').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const card = e.target.closest('.voice-card');
-          const voiceId = card.dataset.voiceId;
-          
-          try {
-            const btn = e.target;
-            const originalText = btn.textContent;
-            btn.disabled = true;
-            btn.innerHTML = `
-              <svg class="animate-spin h-4 w-4 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Loading...
-            `;
-            
-            const response = await fetch('/api/preview-voice', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ voiceId })
-            });
-            
-            if (!response.ok) {
-              throw new Error('Failed to generate preview');
-            }
-            
-            const data = await response.json();
-            
-            if (!data.success || !data.audioUrl) {
-              throw new Error(data.error || 'Failed to generate preview');
-            }
-            
-            const audio = new Audio(data.audioUrl);
-            await audio.play();
-            
-            btn.disabled = false;
-            btn.textContent = originalText;
-            
-          } catch (error) {
-            console.error('🚨 Error previewing voice:', error);
-            alert('Failed to preview voice. Please try again.');
-            
-            btn.disabled = false;
-            btn.textContent = 'Preview Voice';
-          }
-        });
       });
     }
     
@@ -443,25 +513,57 @@ if (!template || !duration || !aspectRatio || !script) {
       const labels = voice.labels || {};
       const isPremium = labels.premium;
       
+      // Create descriptive text
+      const genderText = labels.gender || 'unspecified';
+      const accentText = labels.accent || 'neutral';
+      const ageText = labels.age || 'adult';
+      const description = `${genderText} ${accentText} ${ageText}`.trim();
+      
       return `
-        <div class="voice-card" data-voice-id="${voice.voice_id}" data-voice-name="${voice.name}">
-          <div class="flex items-start justify-between mb-3">
-            <h3 class="font-medium text-white truncate flex-1">${voice.name}</h3>
-            ${isPremium ? '<span class="premium-badge ml-2">Premium</span>' : ''}
+        <div class="voice-card group" data-voice-id="${voice.voice_id}" data-voice-name="${voice.name}">
+          <!-- Voice Header -->
+          <div class="voice-header">
+            <div class="voice-info">
+              <h3 class="voice-name">${voice.name}</h3>
+              ${isPremium ? '<span class="premium-badge">✨ Premium</span>' : '<span class="free-badge">🆓 Free</span>'}
+            </div>
+            <div class="voice-icon">
+              <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+              </svg>
+            </div>
           </div>
           
-          <div class="flex flex-wrap gap-1 mb-3">
-            ${labels.gender ? `<span class="voice-attribute">${labels.gender}</span>` : ''}
-            ${labels.accent ? `<span class="voice-attribute">${labels.accent}</span>` : ''}
-            ${labels.age ? `<span class="voice-attribute">${labels.age}</span>` : ''}
+          <!-- Voice Description -->
+          <div class="voice-description">
+            <p class="description-text">${description}</p>
+            <div class="voice-attributes">
+              ${labels.gender ? `<span class="attribute-tag">${labels.gender}</span>` : ''}
+              ${labels.accent ? `<span class="attribute-tag">${labels.accent}</span>` : ''}
+              ${labels.age ? `<span class="attribute-tag">${labels.age}</span>` : ''}
+            </div>
           </div>
           
-          <div class="flex items-center justify-between">
-            <button class="preview-button">
-              Preview Voice
+          <!-- Voice Actions -->
+          <div class="voice-actions">
+            <button class="preview-btn" title="Preview this voice">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Preview
             </button>
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <button class="select-btn">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              Select
+            </button>
+          </div>
+          
+          <!-- Selection Indicator -->
+          <div class="selection-indicator">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
             </svg>
           </div>
         </div>
