@@ -54,11 +54,11 @@ interface FishAudioTTSResponse {
 // }
 
 // More reliable default voice IDs from Fish Audio
-const DEFAULT_VOICE_IDS = [
-  '7eb30d8b5a4345e7b2a68b3e0f7c5d84', // Well-tested voice 1 
-  '8f2c1d9e4b6a5c7e3f0a8b9c2d5e6f01', // Well-tested voice 2
-  '9a3e2f0b5c8d6e7f4a1b9c8d5e6f2a03'  // Well-tested voice 3
-];
+// const DEFAULT_VOICE_IDS = [
+//   '7eb30d8b5a4345e7b2a68b3e0f7c5d84',  // Well-tested voice 1
+//   '8f2c1d9e4b6a5c7e3f0a8b9c2d5e6f01',  // Well-tested voice 2
+//   '9a3e2f0b5c8d6e7f4a1b9c8d5e6f2a03'  // Well-tested voice 3
+// ];
 
 // Function to validate voice ID - simplified
 function isValidVoiceId(voiceId: string): boolean {
@@ -132,15 +132,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
     
-    // Use the provided voice ID directly if it looks valid
-    let validVoiceId = voiceId;
+    // Use the provided voice ID directly
+    const validVoiceId = voiceId;
     
-    if (!isValidVoiceId(validVoiceId)) {
-      console.log('🐟 generate-fish-audio: Invalid voice ID format, using default');
-      validVoiceId = DEFAULT_VOICE_IDS[0];
-    } else {
-      console.log('🐟 generate-fish-audio: Using provided voice ID:', validVoiceId);
-    }
+    console.log('🐟 generate-fish-audio: Using voice ID:', validVoiceId);
     
     // Use the full script without truncation
     const finalScript = script;
@@ -154,141 +149,115 @@ export const POST: APIRoute = async ({ request, locals }) => {
     
     console.log('✅ generate-fish-audio: API key found, generating audio...');
 
-    // Try with the provided voice ID first, then fallback voices
-    const voicesToTry = [validVoiceId, ...DEFAULT_VOICE_IDS.filter(id => id !== validVoiceId)];
+    // Try with the provided voice ID only (no fallback to fake IDs)
+    console.log(`🔄 generate-fish-audio: Using voice: ${validVoiceId}`);
     
-    for (let i = 0; i < voicesToTry.length; i++) {
-      const currentVoiceId = voicesToTry[i];
-      console.log(`🔄 generate-fish-audio: Trying voice ${i + 1}/${voicesToTry.length}: ${currentVoiceId}`);
-      
-      // Prepare the TTS request
-      const ttsRequest: FishAudioTTSRequest = {
-        text: finalScript,
-        reference_id: currentVoiceId,
-        format: format as 'wav' | 'mp3' | 'opus',
-        latency: 'normal',
-        streaming: false
-      };
+    // Prepare the TTS request
+    const ttsRequest: FishAudioTTSRequest = {
+      text: finalScript,
+      reference_id: validVoiceId,
+      format: format as 'wav' | 'mp3' | 'opus',
+      latency: 'normal',
+      streaming: false
+    };
 
-      try {
-        // Make the Fish Audio TTS API call
-        const response = await fetch('https://api.fish.audio/v1/tts', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${FISH_AUDIO_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(ttsRequest)
+    try {
+      // Make the Fish Audio TTS API call
+      const response = await fetch('https://api.fish.audio/v1/tts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${FISH_AUDIO_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(ttsRequest)
+      });
+
+      console.log(`🐟 generate-fish-audio: Fish Audio API response:`, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        voiceId: validVoiceId
+      });
+
+      if (response.ok) {
+        // Success! Get the audio data
+        const audioData = await response.arrayBuffer();
+        const audioBase64 = Buffer.from(audioData).toString('base64');
+        
+        console.log('✅ generate-fish-audio: Audio generated successfully:', {
+          audioSize: audioData.byteLength,
+          base64Length: audioBase64.length,
+          format: format,
+          voiceUsed: validVoiceId
         });
 
-        console.log(`🐟 generate-fish-audio: Fish Audio API response (voice ${i + 1}):`, {
+        // Construct response
+        const responseData = {
+          success: true,
+          audio_url: `data:audio/${format};base64,${audioBase64}`,
+          audio_base64: audioBase64,
+          format: format,
+          original_voice_id: validVoiceId,
+          used_voice_id: validVoiceId,
+          script_info: {
+            original_text: script,
+            final_text: finalScript,
+            was_truncated: false,
+            original_length: finalScript.length,
+            final_length: finalScript.length,
+            truncation_message: null
+          },
+          voice_info: {
+            voice_id: validVoiceId,
+            provider: 'Fish Audio'
+          }
+        };
+
+        return new Response(
+          JSON.stringify(responseData),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      } else {
+        // Log the error details
+        const errorText = await response.text();
+        console.log(`🚨 generate-fish-audio: TTS generation failed:`, {
           status: response.status,
           statusText: response.statusText,
-          ok: response.ok,
-          voiceId: currentVoiceId
+          error: errorText,
+          voiceId: validVoiceId
         });
-
-        if (response.ok) {
-          // Success! Get the audio data
-          const audioData = await response.arrayBuffer();
-          const audioBase64 = Buffer.from(audioData).toString('base64');
-          
-          console.log('✅ generate-fish-audio: Audio generated successfully:', {
-            audioSize: audioData.byteLength,
-            base64Length: audioBase64.length,
-            format: format,
-            voiceUsed: currentVoiceId,
-            wasFallback: i > 0
-          });
-
-          // Construct response
-          const responseData = {
-            success: true,
-            audio_url: `data:audio/${format};base64,${audioBase64}`,
-            audio_base64: audioBase64,
-            format: format,
-            fallback_used: i > 0,
-            original_voice_id: validVoiceId,
-            used_voice_id: currentVoiceId,
-            script_info: {
-              original_text: script,
-              final_text: finalScript,
-              was_truncated: false,
-              original_length: finalScript.length,
-              final_length: finalScript.length,
-              truncation_message: null
-            },
-            voice_info: {
-              voice_id: currentVoiceId,
-              provider: 'Fish Audio'
-            }
-          };
-
-          return new Response(
-            JSON.stringify(responseData),
-            {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' }
-            }
-          );
-        } else {
-          // Log the error and try next voice
-          const errorText = await response.text();
-          console.log(`🚨 generate-fish-audio: Voice ${i + 1} failed:`, {
-            status: response.status,
-            error: errorText,
-            voiceId: currentVoiceId
-          });
-          
-          // If this was the last voice to try, we'll return an error
-          if (i === voicesToTry.length - 1) {
-            return new Response(
-              JSON.stringify({ 
-                error: `All voices failed. Last error: ${response.status} ${response.statusText}`,
-                details: errorText,
-                success: false,
-                tried_voices: voicesToTry,
-                troubleshooting: "All available voices are currently having issues. This might be a temporary Fish Audio service problem. Please try again in a few minutes."
-              }), 
-              { 
-                status: response.status,
-                headers: { 'Content-Type': 'application/json' }
-              }
-            );
-          }
-        }
-      } catch (fetchError) {
-        console.error(`🚨 generate-fish-audio: Network error for voice ${i + 1}:`, fetchError);
         
-        // If this was the last voice to try, return network error
-        if (i === voicesToTry.length - 1) {
-          return new Response(
-            JSON.stringify({ 
-              error: 'Network error communicating with Fish Audio API',
-              details: fetchError instanceof Error ? fetchError.message : 'Unknown network error',
-              success: false,
-              tried_voices: voicesToTry
-            }), 
-            { 
-              status: 500,
-              headers: { 'Content-Type': 'application/json' }
-            }
-          );
+        return new Response(
+          JSON.stringify({ 
+            error: `Fish Audio TTS failed: ${response.status} ${response.statusText}`,
+            details: errorText,
+            success: false,
+            voiceId: validVoiceId,
+            troubleshooting: "The voice ID might not support TTS generation, or there might be an issue with your Fish Audio account. Try selecting a different voice."
+          }), 
+          { 
+            status: response.status,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    } catch (fetchError) {
+      console.error(`🚨 generate-fish-audio: Network error:`, fetchError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Network error communicating with Fish Audio API',
+          details: fetchError instanceof Error ? fetchError.message : 'Unknown network error',
+          success: false
+        }), 
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
         }
-      }
+      );
     }
-
-    // This should never be reached, but just in case
-    return new Response(
-      JSON.stringify({ 
-        error: 'Unexpected error: No voices were tried',
-        success: false
-      }), 
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
 
   } catch (error) {
     console.error('🚨 generate-fish-audio: Unexpected error:', error);
