@@ -7,7 +7,7 @@ Create engaging short-form videos with AI-generated images, voiceovers, and CapC
 ## ✨ Features
 
 - 🖼️ **AI Image Generation** - Replicate FLUX models create stunning visuals
-- 🎙️ **Voice Synthesis** - ElevenLabs TTS with natural-sounding voices
+- 🎙️ **Voice Synthesis** - Fish Audio TTS with natural-sounding voices
 - 📝 **CapCut-Style Captions** - 8 professional templates with smart emojis
 - 🎥 **Perfect Sync** - Audio, video, and captions perfectly timed (30.537s precision)
 - ⚡ **Fast Motion Effects** - Dynamic Ken Burns, zoom, and pan animations
@@ -38,13 +38,15 @@ npm run dev
 Create a `.env` file in the root directory:
 
 ```env
+OPENAI_API_KEY=your_openai_api_key_here
 REPLICATE_API_TOKEN=your_replicate_token_here
-ELEVENLABS_API_KEY=your_elevenlabs_key_here
+FISH_AUDIO_API_KEY=your_fish_audio_api_key_here
 ```
 
 ### How to get API keys:
+- **OpenAI**: Sign up at [platform.openai.com](https://platform.openai.com) → API Keys → Create new secret key
 - **Replicate**: Sign up at [replicate.com](https://replicate.com) → Account → API Tokens
-- **ElevenLabs**: Sign up at [elevenlabs.io](https://elevenlabs.io) → Profile → API Key
+- **Fish Audio**: Sign up at [fish.audio](https://fish.audio) → Go API → Get API Key
 
 ## 📱 How It Works
 
@@ -75,7 +77,7 @@ ELEVENLABS_API_KEY=your_elevenlabs_key_here
 ### Video Generation Process:
 1. **Script Analysis** - AI breaks down your script into visual segments
 2. **Image Creation** - 7 unique images generated via Replicate FLUX
-3. **Audio Synthesis** - ElevenLabs creates natural voiceover (30.537s duration)
+3. **Audio Synthesis** - Fish Audio creates natural voiceover (30.537s duration)
 4. **Caption Generation** - 33+ word-level timed segments with smart emojis
 5. **Motion Effects** - Each image gets unique animation (Ken Burns, zoom, pan)
 6. **Perfect Sync** - All elements timed to 4.362s per image
@@ -92,7 +94,8 @@ ELEVENLABS_API_KEY=your_elevenlabs_key_here
 - **Styling**: Tailwind CSS
 - **AI Services**: 
   - Replicate API (FLUX image generation)
-  - ElevenLabs (Voice synthesis)
+  - Fish Audio (Voice synthesis)
+  - OpenAI GPT-4 (Script generation)
 - **Hosting**: Cloudflare Pages
 - **Video Processing**: Canvas API + MediaRecorder
 
@@ -139,7 +142,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **Replicate** for powerful AI image generation
-- **ElevenLabs** for natural voice synthesis
+- **Fish Audio** for natural voice synthesis
+- **OpenAI** for script generation
 - **Astro** for the amazing web framework
 - **CapCut** for caption style inspiration
 

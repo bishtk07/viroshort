@@ -28,7 +28,7 @@ Write-Host "📦 Adding all files to Git..." -ForegroundColor Yellow
 git add .
 
 # Commit changes
-$commitMessage = "🎬 ViroShort: AI Video Generator with CapCut-style captions and emojis"
+$commitMessage = "🎬 ViroShort: AI Video Generator with Fish Audio voice synthesis"
 Write-Host "💾 Committing changes: $commitMessage" -ForegroundColor Yellow
 git commit -m $commitMessage
 
@@ -83,7 +83,8 @@ Write-Host "   - Build command: npm run build" -ForegroundColor Gray
 Write-Host "   - Output directory: dist" -ForegroundColor Gray
 Write-Host ""
 Write-Host "3. Add Environment Variables in Cloudflare:" -ForegroundColor White
-Write-Host "   - REPLICATE_API_TOKEN" -ForegroundColor Gray
-Write-Host "   - ELEVENLABS_API_KEY" -ForegroundColor Gray
+Write-Host "   - OPENAI_API_KEY (for script generation)" -ForegroundColor Gray
+Write-Host "   - REPLICATE_API_TOKEN (for image generation)" -ForegroundColor Gray
+Write-Host "   - FISH_AUDIO_API_KEY (for voice synthesis)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "🎬 Your app will be live at: https://$repoName.pages.dev" -ForegroundColor Green 
