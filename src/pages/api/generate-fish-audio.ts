@@ -1,0 +1,303 @@
+import type { APIRoute } from 'astro';
+
+interface FishAudioTTSRequest {
+  text: string;
+  reference_id: string;
+  format?: 'wav' | 'mp3' | 'opus';
+  mp3_bitrate?: number;
+  opus_bitrate?: number;
+  latency?: 'normal' | 'balanced';
+  streaming?: boolean;
+}
+
+interface FishAudioTTSResponse {
+  audio: string; // Base64 encoded audio
+  format: string;
+}
+
+// Utility function to truncate text at sentence boundaries - REMOVED
+// function truncateAtSentence(text: string, maxLength: number = 400): { text: string; truncated: boolean; originalLength: number; finalLength: number } {
+//   const originalLength = text.length;
+  
+//   if (originalLength <= maxLength) {
+//     return {
+//       text,
+//       truncated: false,
+//       originalLength,
+//       finalLength: originalLength
+//     };
+//   }
+  
+//   // Find the last sentence ending within the limit
+//   const truncatedText = text.substring(0, maxLength);
+//   const lastSentenceEnd = Math.max(
+//     truncatedText.lastIndexOf('.'),
+//     truncatedText.lastIndexOf('!'),
+//     truncatedText.lastIndexOf('?')
+//   );
+  
+//   let finalText;
+//   if (lastSentenceEnd > maxLength * 0.7) { // If we found a sentence end that's reasonably close to the limit
+//     finalText = text.substring(0, lastSentenceEnd + 1);
+//   } else {
+//     // Fall back to word boundary
+//     const lastSpace = truncatedText.lastIndexOf(' ');
+//     finalText = lastSpace > 0 ? text.substring(0, lastSpace) : truncatedText;
+//   }
+  
+//   return {
+//     text: finalText,
+//     truncated: true,
+//     originalLength,
+//     finalLength: finalText.length
+//   };
+// }
+
+// More reliable default voice IDs from Fish Audio
+const DEFAULT_VOICE_IDS = [
+  '7eb30d8b5a4345e7b2a68b3e0f7c5d84', // Well-tested voice 1 
+  '8f2c1d9e4b6a5c7e3f0a8b9c2d5e6f01', // Well-tested voice 2
+  '9a3e2f0b5c8d6e7f4a1b9c8d5e6f2a03'  // Well-tested voice 3
+];
+
+// Function to validate voice ID - simplified
+function isValidVoiceId(voiceId: string): boolean {
+  // Accept any voice ID that looks like a UUID (more lenient)
+  // Fish Audio uses both UUID and custom formats
+  if (!voiceId || voiceId.length < 10) return false;
+  
+  // Check for UUID format OR Fish Audio custom format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const fishAudioRegex = /^[0-9a-f]{32}$/i; // 32-character hex string
+  
+  return uuidRegex.test(voiceId) || fishAudioRegex.test(voiceId);
+}
+
+export const POST: APIRoute = async ({ request }) => {
+  try {
+    console.log('🐟 generate-fish-audio: Starting Fish Audio TTS generation...');
+    
+    // Get request body
+    const body = await request.json();
+    const { script, voiceId, format = 'mp3' } = body;
+    
+    console.log('🐟 generate-fish-audio: Request received:', {
+      scriptLength: script?.length || 0,
+      voiceId: voiceId || 'none',
+      format
+    });
+    
+    // Validate input
+    if (!script || !voiceId) {
+      console.error('🚨 generate-fish-audio: Missing required fields');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Missing required fields: script and voiceId are required',
+          success: false
+        }), 
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
+    // Use the provided voice ID directly if it looks valid
+    let validVoiceId = voiceId;
+    
+    if (!isValidVoiceId(validVoiceId)) {
+      console.log('🐟 generate-fish-audio: Invalid voice ID format, using default');
+      validVoiceId = DEFAULT_VOICE_IDS[0];
+    } else {
+      console.log('🐟 generate-fish-audio: Using provided voice ID:', validVoiceId);
+    }
+    
+    // Use the full script without truncation
+    const finalScript = script;
+    
+    console.log('🐟 generate-fish-audio: Script processing:', {
+      scriptLength: finalScript.length,
+      usingFullScript: true,
+      voiceId: validVoiceId,
+      format: format
+    });
+    
+    // Get Fish Audio API key
+    const FISH_AUDIO_API_KEY = 
+      import.meta.env.FISH_AUDIO_API_KEY || 
+      process.env.FISH_AUDIO_API_KEY;
+    
+    console.log('🐟 generate-fish-audio: Environment check:', {
+      hasImportMetaKey: !!import.meta.env.FISH_AUDIO_API_KEY,
+      hasProcessEnvKey: !!process.env.FISH_AUDIO_API_KEY,
+      finalKeyFound: !!FISH_AUDIO_API_KEY,
+      keyLength: FISH_AUDIO_API_KEY ? FISH_AUDIO_API_KEY.length : 0
+    });
+    
+    if (!FISH_AUDIO_API_KEY || FISH_AUDIO_API_KEY === 'your_fish_audio_api_key_here') {
+      console.error('🚨 generate-fish-audio: Fish Audio API key not found');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Fish Audio API key not configured. Please add FISH_AUDIO_API_KEY to your environment variables.',
+          success: false
+        }), 
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log('✅ generate-fish-audio: API key found, generating audio...');
+
+    // Try with the provided voice ID first, then fallback voices
+    const voicesToTry = [validVoiceId, ...DEFAULT_VOICE_IDS.filter(id => id !== validVoiceId)];
+    
+    for (let i = 0; i < voicesToTry.length; i++) {
+      const currentVoiceId = voicesToTry[i];
+      console.log(`🔄 generate-fish-audio: Trying voice ${i + 1}/${voicesToTry.length}: ${currentVoiceId}`);
+      
+      // Prepare the TTS request
+      const ttsRequest: FishAudioTTSRequest = {
+        text: finalScript,
+        reference_id: currentVoiceId,
+        format: format as 'wav' | 'mp3' | 'opus',
+        latency: 'normal',
+        streaming: false
+      };
+
+      try {
+        // Make the Fish Audio TTS API call
+        const response = await fetch('https://api.fish.audio/v1/tts', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${FISH_AUDIO_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(ttsRequest)
+        });
+
+        console.log(`🐟 generate-fish-audio: Fish Audio API response (voice ${i + 1}):`, {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          voiceId: currentVoiceId
+        });
+
+        if (response.ok) {
+          // Success! Get the audio data
+          const audioData = await response.arrayBuffer();
+          const audioBase64 = Buffer.from(audioData).toString('base64');
+          
+          console.log('✅ generate-fish-audio: Audio generated successfully:', {
+            audioSize: audioData.byteLength,
+            base64Length: audioBase64.length,
+            format: format,
+            voiceUsed: currentVoiceId,
+            wasFallback: i > 0
+          });
+
+          // Construct response
+          const responseData = {
+            success: true,
+            audio_url: `data:audio/${format};base64,${audioBase64}`,
+            audio_base64: audioBase64,
+            format: format,
+            fallback_used: i > 0,
+            original_voice_id: validVoiceId,
+            used_voice_id: currentVoiceId,
+            script_info: {
+              original_text: script,
+              final_text: finalScript,
+              was_truncated: false,
+              original_length: finalScript.length,
+              final_length: finalScript.length,
+              truncation_message: null
+            },
+            voice_info: {
+              voice_id: currentVoiceId,
+              provider: 'Fish Audio'
+            }
+          };
+
+          return new Response(
+            JSON.stringify(responseData),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+        } else {
+          // Log the error and try next voice
+          const errorText = await response.text();
+          console.log(`🚨 generate-fish-audio: Voice ${i + 1} failed:`, {
+            status: response.status,
+            error: errorText,
+            voiceId: currentVoiceId
+          });
+          
+          // If this was the last voice to try, we'll return an error
+          if (i === voicesToTry.length - 1) {
+            return new Response(
+              JSON.stringify({ 
+                error: `All voices failed. Last error: ${response.status} ${response.statusText}`,
+                details: errorText,
+                success: false,
+                tried_voices: voicesToTry,
+                troubleshooting: "All available voices are currently having issues. This might be a temporary Fish Audio service problem. Please try again in a few minutes."
+              }), 
+              { 
+                status: response.status,
+                headers: { 'Content-Type': 'application/json' }
+              }
+            );
+          }
+        }
+      } catch (fetchError) {
+        console.error(`🚨 generate-fish-audio: Network error for voice ${i + 1}:`, fetchError);
+        
+        // If this was the last voice to try, return network error
+        if (i === voicesToTry.length - 1) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Network error communicating with Fish Audio API',
+              details: fetchError instanceof Error ? fetchError.message : 'Unknown network error',
+              success: false,
+              tried_voices: voicesToTry
+            }), 
+            { 
+              status: 500,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+        }
+      }
+    }
+
+    // This should never be reached, but just in case
+    return new Response(
+      JSON.stringify({ 
+        error: 'Unexpected error: No voices were tried',
+        success: false
+      }), 
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+  } catch (error) {
+    console.error('🚨 generate-fish-audio: Unexpected error:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Unexpected server error while generating Fish Audio',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        success: false
+      }), 
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+}; 

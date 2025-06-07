@@ -71,16 +71,30 @@ if (!template || !duration || !aspectRatio || !script) {
             <button id="filter-all" class="voice-filter-btn active" data-filter="all">
               All Voices
             </button>
-            <button id="filter-premium" class="voice-filter-btn" data-filter="premium">
-              Premium Only
+            <button id="filter-celebrity" class="voice-filter-btn" data-filter="celebrity">
+              🎭 Celebrity
             </button>
+            <button id="filter-popular" class="voice-filter-btn" data-filter="popular">
+              🔥 Popular
+            </button>
+            <button id="filter-normal" class="voice-filter-btn" data-filter="normal">
+              Regular
+            </button>
+          </div>
+        </div>
+
+        <!-- Voice Stats -->
+        <div id="voice-stats" class="hidden mb-6 p-4 bg-blue-50 rounded-lg">
+          <div class="flex items-center justify-between text-sm text-blue-700">
+            <span id="stats-text">Voices loaded successfully</span>
+            <span class="text-blue-600 font-medium">🎭 Voice Library</span>
           </div>
         </div>
 
         <!-- Loading State -->
         <div id="voices-loading" class="text-center py-12">
           <div class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p class="text-gray-600">Loading voices...</p>
+          <p class="text-gray-600">Loading voices from Fish Audio...</p>
         </div>
 
         <!-- Error State -->
@@ -93,7 +107,7 @@ if (!template || !duration || !aspectRatio || !script) {
         </div>
 
         <!-- Voices Grid -->
-        <div id="voices-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+        <div id="voices-grid" class="hidden">
           <!-- Voice cards will be populated here -->
         </div>
 
@@ -190,129 +204,125 @@ if (!template || !duration || !aspectRatio || !script) {
     }
     
     .voice-card {
-      @apply relative bg-white rounded-xl border-2 border-gray-200 p-6 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md;
+      @apply bg-white rounded-xl border border-gray-300 p-6 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     
     .voice-card:hover {
-      @apply border-blue-300 transform scale-105;
+      @apply border-blue-400 transform translate-y-[-2px];
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15);
     }
     
     .voice-card.selected {
-      @apply border-blue-500 bg-blue-50 shadow-lg ring-2 ring-blue-200;
+      @apply border-blue-500 bg-blue-50 shadow-md;
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.25);
     }
     
-    /* Voice Header */
+    .voice-card.celebrity {
+      @apply border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-50;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+    }
+    
+    .voice-card.celebrity:hover {
+      @apply border-yellow-500;
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25);
+    }
+    
+    .voice-card.celebrity.selected {
+      @apply border-yellow-600 bg-gradient-to-br from-yellow-100 to-amber-100;
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+    }
+    
+    .voice-card.popular {
+      @apply border-orange-400 bg-gradient-to-br from-orange-50 to-red-50;
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15);
+    }
+    
+    .voice-card.popular:hover {
+      @apply border-orange-500;
+      box-shadow: 0 4px 16px rgba(249, 115, 22, 0.25);
+    }
+    
+    .voice-card.popular.selected {
+      @apply border-orange-600 bg-gradient-to-br from-orange-100 to-red-100;
+      box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+    }
+    
     .voice-header {
       @apply flex items-start justify-between mb-4;
     }
     
-    .voice-info {
-      @apply flex-1;
-    }
-    
     .voice-name {
-      @apply text-lg font-bold text-gray-900 mb-1;
+      @apply text-xl font-bold text-gray-900 leading-tight group-hover:text-blue-600 transition-colors duration-200;
     }
     
-    .voice-icon {
-      @apply opacity-50 group-hover:opacity-100 transition-opacity;
+    .voice-category {
+      @apply text-xs px-3 py-1 rounded-full font-semibold tracking-wide;
     }
     
-    /* Badges */
-    .premium-badge {
-      @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-yellow-400 to-orange-500 text-black;
+    .voice-category.celebrity {
+      @apply bg-yellow-200 text-yellow-800;
     }
     
-    .free-badge {
-      @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800;
+    .voice-category.popular {
+      @apply bg-orange-200 text-orange-800;
     }
     
-    /* Voice Description */
-    .voice-description {
-      @apply mb-4;
+    .voice-category.normal {
+      @apply bg-gray-200 text-gray-700;
     }
     
-    .description-text {
-      @apply text-sm text-gray-600 mb-2 capitalize;
+    .voice-stats {
+      @apply flex items-center justify-between mb-4;
     }
     
-    .voice-attributes {
-      @apply flex flex-wrap gap-1;
+    .voice-likes {
+      @apply flex items-center gap-2 text-red-500 font-medium;
     }
     
-    .attribute-tag {
-      @apply inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full border;
+    .voice-author {
+      @apply text-sm text-gray-500 font-medium;
     }
     
-    /* Voice Actions */
     .voice-actions {
-      @apply flex gap-2 mb-4;
+      @apply flex gap-3;
+    }
+    
+    .preview-btn, .select-btn {
+      @apply flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 min-h-[42px];
     }
     
     .preview-btn {
-      @apply flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors;
+      @apply bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105;
     }
     
     .select-btn {
-      @apply flex items-center gap-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors flex-1 justify-center;
+      @apply bg-blue-500 text-white hover:bg-blue-600 hover:scale-105 shadow-md;
     }
     
-    /* Selection Indicator */
-    .selection-indicator {
-      @apply absolute top-3 right-3 w-6 h-6 bg-blue-500 text-white rounded-full items-center justify-center hidden;
+    .section-title {
+      @apply text-xl font-bold text-gray-900 mb-6 flex items-center gap-3;
     }
     
-    .voice-card.selected .selection-indicator {
-      @apply flex;
+    .voices-section {
+      @apply mb-10;
     }
     
-    .voice-card.selected .select-btn {
-      @apply bg-green-500 hover:bg-green-600;
-    }
-    
-    .voice-card.selected .voice-name {
-      @apply text-blue-700;
-    }
-    
-    /* Responsive Grid */
-    #voices-grid {
-      @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6;
-    }
-    
-    /* Voice Card Animations */
-    .voice-card {
-      animation: fadeInUp 0.3s ease-out;
-    }
-    
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    
-    /* Loading state improvements */
-    #voices-loading {
-      @apply bg-white rounded-xl border border-gray-200 shadow-sm;
-    }
-    
-    #voices-error {
-      @apply bg-white rounded-xl border border-red-200 shadow-sm;
+    .voices-section:last-child {
+      @apply mb-0;
     }
   </style>
 
   <script>
-    console.log('🎭 Voice Selection Page Starting...');
+    console.log('🎭 Voice Selection Page Starting with Fish Audio...');
     
     // Global variables
-    let allVoices = [];
+    let allVoices = {};
     let selectedVoice = null;
     let currentFilter = 'all';
     let currentPreviewVoice = null;
+    let lastPreviewTime = 0;
+    const PREVIEW_COOLDOWN = 3000; // 3 seconds between previews
     
     // Page parameters
     const urlParams = new URLSearchParams(window.location.search);
@@ -364,7 +374,9 @@ if (!template || !duration || !aspectRatio || !script) {
       
       // Filter buttons
       document.getElementById('filter-all').addEventListener('click', () => setFilter('all'));
-      document.getElementById('filter-premium').addEventListener('click', () => setFilter('premium'));
+      document.getElementById('filter-celebrity').addEventListener('click', () => setFilter('celebrity'));
+      document.getElementById('filter-popular').addEventListener('click', () => setFilter('popular'));
+      document.getElementById('filter-normal').addEventListener('click', () => setFilter('normal'));
       
       // Retry button
       document.getElementById('retry-voices').addEventListener('click', loadVoices);
@@ -380,19 +392,19 @@ if (!template || !duration || !aspectRatio || !script) {
     }
     
     async function loadVoices() {
-      console.log('🎭 Loading voices from API...');
+      console.log('🎭 Loading voices from Fish Audio API...');
       
       showVoicesLoading();
       
       try {
-        const response = await fetch('/api/get-voices', {
+        const response = await fetch('/api/get-fish-voices', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
           }
         });
         
-        console.log('🎭 API Response status:', response.status);
+        console.log('🎭 Fish Audio API Response status:', response.status);
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Network error' }));
@@ -400,24 +412,32 @@ if (!template || !duration || !aspectRatio || !script) {
         }
         
         const data = await response.json();
-        console.log('🎭 API Response data:', data);
+        console.log('🎭 Fish Audio API Response data:', data);
         
         if (!data.success) {
           throw new Error(data.error || 'Failed to load voices');
         }
         
-        if (!data.voices || !Array.isArray(data.voices)) {
-          throw new Error('Invalid response format - voices not found');
-        }
+        // Fix: The API returns celebrity, popular, normal directly, not nested under 'voices'
+        allVoices = {
+          celebrity: data.celebrity || [],
+          popular: data.popular || [],
+          normal: data.normal || []
+        };
         
-        allVoices = data.voices;
-        console.log(`🎭 Successfully loaded ${allVoices.length} voices`);
+        console.log('🎭 Successfully loaded Fish Audio voices:', {
+          celebrity: allVoices.celebrity?.length || 0,
+          popular: allVoices.popular?.length || 0,
+          normal: allVoices.normal?.length || 0,
+          total: (allVoices.celebrity?.length || 0) + (allVoices.popular?.length || 0) + (allVoices.normal?.length || 0)
+        });
         
         hideVoicesLoading();
+        showVoiceStats(data.stats);
         renderVoices();
         
       } catch (error) {
-        console.error('🚨 Error loading voices:', error);
+        console.error('🚨 Error loading Fish Audio voices:', error);
         showVoicesError(error.message);
       }
     }
@@ -426,6 +446,7 @@ if (!template || !duration || !aspectRatio || !script) {
       document.getElementById('voices-loading').classList.remove('hidden');
       document.getElementById('voices-error').classList.add('hidden');
       document.getElementById('voices-grid').classList.add('hidden');
+      document.getElementById('voice-stats').classList.add('hidden');
     }
     
     function hideVoicesLoading() {
@@ -435,14 +456,23 @@ if (!template || !duration || !aspectRatio || !script) {
     function showVoicesError(message) {
       document.getElementById('voices-loading').classList.add('hidden');
       document.getElementById('voices-grid').classList.add('hidden');
+      document.getElementById('voice-stats').classList.add('hidden');
       document.getElementById('voices-error').classList.remove('hidden');
       document.getElementById('error-message').textContent = message;
+    }
+    
+    function showVoiceStats(stats) {
+      if (stats) {
+        const statsText = `Loaded ${stats.celebrity_count} celebrity, ${stats.popular_count} popular, and ${stats.normal_count} regular voices (${stats.total_fetched} total scanned)`;
+        document.getElementById('stats-text').textContent = statsText;
+        document.getElementById('voice-stats').classList.remove('hidden');
+      }
     }
     
     function renderVoices() {
       console.log('🎭 Rendering voices, filter:', currentFilter);
       
-      const filteredVoices = filterVoices(allVoices);
+      const filteredVoices = getFilteredVoices();
       const grid = document.getElementById('voices-grid');
       
       if (filteredVoices.length === 0) {
@@ -451,19 +481,116 @@ if (!template || !duration || !aspectRatio || !script) {
         return;
       }
       
-      grid.innerHTML = filteredVoices.map(voice => createVoiceCard(voice)).join('');
+      let html = '';
+      
+      if (currentFilter === 'all') {
+        // Show all categories with sections
+        if (allVoices.celebrity && allVoices.celebrity.length > 0) {
+          html += createVoiceSection('🎭 Celebrity Voices', allVoices.celebrity, 'celebrity');
+        }
+        if (allVoices.popular && allVoices.popular.length > 0) {
+          html += createVoiceSection('🔥 Popular Voices', allVoices.popular, 'popular');
+        }
+        if (allVoices.normal && allVoices.normal.length > 0) {
+          html += createVoiceSection('Regular Voices', allVoices.normal, 'normal');
+        }
+      } else {
+        // Show only selected category
+        const categoryTitle = {
+          'celebrity': '🎭 Celebrity Voices',
+          'popular': '🔥 Popular Voices',
+          'normal': 'Regular Voices'
+        }[currentFilter];
+        
+        html = createVoiceSection(categoryTitle, filteredVoices, currentFilter);
+      }
+      
+      grid.innerHTML = html;
       grid.classList.remove('hidden');
       
       // Add click listeners to voice cards
+      setupVoiceCardListeners();
+    }
+    
+    function getFilteredVoices() {
+      if (currentFilter === 'all') {
+        return [...(allVoices.celebrity || []), ...(allVoices.popular || []), ...(allVoices.normal || [])];
+      }
+      return allVoices[currentFilter] || [];
+    }
+    
+    function createVoiceSection(title, voices, category) {
+      if (!voices || voices.length === 0) return '';
+      
+      const voiceCards = voices.slice(0, currentFilter === 'all' ? 12 : 50).map(voice => createVoiceCard(voice, category)).join('');
+      
+      return `
+        <div class="voices-section">
+          <h3 class="section-title">${title} <span class="text-sm font-normal text-gray-500">(${voices.length})</span></h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            ${voiceCards}
+          </div>
+        </div>
+      `;
+    }
+    
+    function createVoiceCard(voice, category) {
+      const categoryEmoji = {
+        'celebrity': '🎭',
+        'popular': '🔥',
+        'normal': '👤'
+      }[category] || '👤';
+      
+      const displayName = voice.name.length > 30 ? voice.name.substring(0, 30) + '...' : voice.name;
+      const heartCount = voice.like_count || 0;
+      
+      return `
+        <div class="voice-card group ${category}" data-voice-id="${voice.id}" data-voice-name="${voice.name}" data-category="${category}">
+          <div class="voice-header">
+            <div class="flex-1">
+              <h3 class="voice-name text-xl font-bold text-gray-900 mb-2 leading-tight group-hover:text-blue-600 transition-colors duration-200">${displayName}</h3>
+              <div class="voice-likes flex items-center gap-2 text-red-500 font-semibold text-lg">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+                </svg>
+                <span>${heartCount.toLocaleString()}</span>
+              </div>
+            </div>
+            <span class="voice-category ${category} text-lg">${categoryEmoji}</span>
+          </div>
+          
+          <div class="voice-actions mt-4 pt-4 border-t border-gray-200">
+            <div class="flex gap-2 w-full">
+              <button class="preview-btn flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105" title="Preview this voice">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Preview
+              </button>
+              <button class="select-btn flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 bg-blue-500 text-white hover:bg-blue-600 hover:scale-105 shadow-md">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Select
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function setupVoiceCardListeners() {
+      const grid = document.getElementById('voices-grid');
+      
       grid.querySelectorAll('.voice-card').forEach(card => {
-        // Handle voice selection via select button or card click
         const selectBtn = card.querySelector('.select-btn');
         const previewBtn = card.querySelector('.preview-btn');
         
         const handleSelect = () => {
           const voiceId = card.dataset.voiceId;
           const voiceName = card.dataset.voiceName;
-          selectVoice(voiceId, voiceName);
+          const category = card.dataset.category;
+          selectVoice(voiceId, voiceName, category);
         };
         
         // Select voice when clicking the select button
@@ -479,18 +606,13 @@ if (!template || !duration || !aspectRatio || !script) {
           handleSelect();
         });
         
-        // Handle preview button (temporarily disabled)
+        // Handle preview button
         previewBtn?.addEventListener('click', (e) => {
           e.stopPropagation();
           
-          // Temporarily disable preview due to API issues
-          alert('Voice preview is temporarily unavailable. Please select a voice to continue.');
-          
-          // TODO: Re-enable when API key issues are resolved
-          /*
           const voiceId = card.dataset.voiceId;
-          previewVoice(voiceId);
-          */
+          const voiceName = card.dataset.voiceName;
+          previewVoice(voiceId, voiceName);
         });
         
         // Highlight previously selected voice if any
@@ -500,74 +622,6 @@ if (!template || !duration || !aspectRatio || !script) {
           console.log('🎭 Restored UI selection for voice:', selectedVoice.name);
         }
       });
-    }
-    
-    function filterVoices(voices) {
-      if (currentFilter === 'premium') {
-        return voices.filter(voice => voice.labels?.premium);
-      }
-      return voices;
-    }
-    
-    function createVoiceCard(voice) {
-      const labels = voice.labels || {};
-      const isPremium = labels.premium;
-      
-      // Create descriptive text
-      const genderText = labels.gender || 'unspecified';
-      const accentText = labels.accent || 'neutral';
-      const ageText = labels.age || 'adult';
-      const description = `${genderText} ${accentText} ${ageText}`.trim();
-      
-      return `
-        <div class="voice-card group" data-voice-id="${voice.voice_id}" data-voice-name="${voice.name}">
-          <!-- Voice Header -->
-          <div class="voice-header">
-            <div class="voice-info">
-              <h3 class="voice-name">${voice.name}</h3>
-              ${isPremium ? '<span class="premium-badge">✨ Premium</span>' : '<span class="free-badge">🆓 Free</span>'}
-            </div>
-            <div class="voice-icon">
-              <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-              </svg>
-            </div>
-          </div>
-          
-          <!-- Voice Description -->
-          <div class="voice-description">
-            <p class="description-text">${description}</p>
-            <div class="voice-attributes">
-              ${labels.gender ? `<span class="attribute-tag">${labels.gender}</span>` : ''}
-              ${labels.accent ? `<span class="attribute-tag">${labels.accent}</span>` : ''}
-              ${labels.age ? `<span class="attribute-tag">${labels.age}</span>` : ''}
-            </div>
-          </div>
-          
-          <!-- Voice Actions -->
-          <div class="voice-actions">
-            <button class="preview-btn" title="Preview this voice">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              Preview
-            </button>
-            <button class="select-btn">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-              </svg>
-              Select
-            </button>
-          </div>
-          
-          <!-- Selection Indicator -->
-          <div class="selection-indicator">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-            </svg>
-          </div>
-        </div>
-      `;
     }
     
     function setFilter(filter) {
@@ -585,11 +639,11 @@ if (!template || !duration || !aspectRatio || !script) {
       renderVoices();
     }
     
-    function selectVoice(voiceId, voiceName) {
-      console.log('🎭 Selecting voice:', { id: voiceId, name: voiceName });
+    function selectVoice(voiceId, voiceName, category) {
+      console.log('🎭 Selecting Fish Audio voice:', { id: voiceId, name: voiceName, category });
       
       // Store the selected voice
-      selectedVoice = { id: voiceId, name: voiceName };
+      selectedVoice = { id: voiceId, name: voiceName, category, provider: 'Fish Audio' };
       
       // Save to sessionStorage as backup
       try {
@@ -608,7 +662,7 @@ if (!template || !duration || !aspectRatio || !script) {
       
       updateContinueSection();
       
-      console.log('🎭 Voice selection complete, stored:', selectedVoice);
+      console.log('🎭 Fish Audio voice selection complete, stored:', selectedVoice);
     }
     
     function updateContinueSection() {
@@ -616,13 +670,170 @@ if (!template || !duration || !aspectRatio || !script) {
       const selectedVoiceName = document.getElementById('selected-voice-name');
       
       if (selectedVoice) {
-        selectedVoiceName.textContent = selectedVoice.name;
+        const categoryEmoji = {
+          'celebrity': '🎭',
+          'popular': '🔥',
+          'normal': '👤'
+        }[selectedVoice.category] || '👤';
+        
+        selectedVoiceName.textContent = `${categoryEmoji} ${selectedVoice.name} (${selectedVoice.category})`;
         continueSection.classList.remove('hidden');
         console.log('🎭 Voice selected, showing continue section');
       } else {
         continueSection.classList.add('hidden');
         console.log('🎭 No voice selected, hiding continue section');
       }
+    }
+    
+    async function previewVoice(voiceId, voiceName) {
+      console.log('🎭 Previewing Fish Audio voice:', { id: voiceId, name: voiceName });
+      
+      // Check cooldown to prevent rate limiting
+      const now = Date.now();
+      const timeSinceLastPreview = now - lastPreviewTime;
+      
+      if (timeSinceLastPreview < PREVIEW_COOLDOWN) {
+        const remainingTime = Math.ceil((PREVIEW_COOLDOWN - timeSinceLastPreview) / 1000);
+        alert(`Please wait ${remainingTime} seconds before previewing another voice to avoid rate limits.`);
+        return;
+      }
+
+      lastPreviewTime = now;
+      
+      // Show loading indicator
+      const previewButtons = document.querySelectorAll(`[onclick*="${voiceId}"]`);
+      previewButtons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = `
+          <div class="flex items-center justify-center">
+            <svg class="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading...
+          </div>
+        `;
+      });
+      
+      try {
+        // Generate a shorter preview text to reduce API usage and time
+        const previewText = "Hello, this is a voice preview.";
+        
+        const response = await fetch('/api/generate-fish-audio', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            script: previewText,
+            voiceId: voiceId
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+          
+          // Handle specific error types for better UX
+          if (response.status === 429) {
+            throw new Error('Rate limit reached. Please wait before trying again.');
+          } else if (response.status === 500 && errorData.error?.includes('Failed to download reference audio')) {
+            throw new Error(`Voice "${voiceName}" is currently unavailable. Please try another voice.`);
+          } else if (response.status === 401) {
+            throw new Error('Fish Audio API key issue. Please check configuration.');
+          }
+          
+          throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Preview generation failed');
+        }
+        
+        // Create and play audio
+        const audio = new Audio(data.audio_url);
+        
+        // Add error handling for audio playback
+        audio.addEventListener('error', () => {
+          throw new Error('Audio playback failed. The voice preview may be corrupted.');
+        });
+        
+        audio.addEventListener('loadstart', () => {
+          console.log('🎭 Audio preview loading...');
+        });
+        
+        audio.addEventListener('canplay', () => {
+          console.log('🎭 Audio preview ready to play');
+        });
+        
+        await audio.play();
+        console.log('🎭 Fish Audio voice preview played successfully');
+        
+      } catch (error) {
+        console.error('🚨 Error generating Fish Audio voice preview:', error);
+        
+        // Reset cooldown on error so user can try again sooner
+        lastPreviewTime = 0;
+        
+        // Show user-friendly error message
+        let userMessage = error.message;
+        if (error.message.includes('rate limit')) {
+          userMessage = 'Too many requests. Please wait a moment before trying again.';
+        } else if (error.message.includes('unavailable')) {
+          userMessage = `Voice "${voiceName}" is unavailable. Try selecting a different voice.`;
+        } else if (error.message.includes('API key')) {
+          userMessage = 'Configuration issue. Please contact support.';
+        }
+        
+        // Show error in a non-blocking way
+        showPreviewError(userMessage, voiceName);
+        
+      } finally {
+        // Reset preview buttons
+        previewButtons.forEach(btn => {
+          btn.disabled = false;
+          btn.innerHTML = `
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          `;
+        });
+      }
+    }
+
+    function showPreviewError(message, voiceName) {
+      // Create a temporary error notification
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 max-w-sm';
+      notification.innerHTML = `
+        <div class="flex items-start">
+          <div class="flex-shrink-0">
+            <svg class="w-4 h-4 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-2">
+            <p class="text-sm font-medium">Preview Failed</p>
+            <p class="text-xs mt-1">${message}</p>
+          </div>
+          <button onclick="this.parentElement.parentElement.remove()" class="ml-auto">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Auto-remove after 5 seconds
+      setTimeout(() => {
+        if (notification.parentElement) {
+          notification.remove();
+        }
+      }, 5000);
     }
     
     async function generateAudio() {
@@ -646,10 +857,11 @@ if (!template || !duration || !aspectRatio || !script) {
       }
       
       const decodedScript = decodeURIComponent(script);
-      console.log('🎭 Generating audio with:', {
+      console.log('🎭 Generating Fish Audio with:', {
         voiceId: selectedVoice.id,
         scriptLength: decodedScript.length,
-        scriptPreview: decodedScript.substring(0, 50) + '...'
+        scriptPreview: decodedScript.substring(0, 50) + '...',
+        provider: 'Fish Audio'
       });
       
       const btn = document.getElementById('generate-audio-btn');
@@ -661,12 +873,12 @@ if (!template || !duration || !aspectRatio || !script) {
       defaultText.classList.add('hidden');
       
       try {
-        console.log('🎭 Sending audio generation request with payload:', {
+        console.log('🎭 Sending Fish Audio generation request with payload:', {
           voiceId: selectedVoice.id,
           scriptLength: decodedScript.length
         });
         
-        const response = await fetch('/api/generate-audio', {
+        const response = await fetch('/api/generate-fish-audio', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -677,7 +889,7 @@ if (!template || !duration || !aspectRatio || !script) {
           })
         });
         
-        console.log('🎭 Generate audio response status:', response.status);
+        console.log('🎭 Generate Fish Audio response status:', response.status);
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Network error' }));
@@ -690,23 +902,50 @@ if (!template || !duration || !aspectRatio || !script) {
           throw new Error(data.error || 'Audio generation failed');
         }
         
-        console.log('🎭 Audio generated successfully, proceeding to video generation...');
+        // Check if script was truncated and show warning to user
+        if (data.script_info?.was_truncated) {
+          alert(data.script_info.truncation_message);
+          console.warn('🎭 Script was truncated:', data.script_info);
+        }
         
-        // Proceed to video generation with audio URL
-        const videoParams = new URLSearchParams({
+        console.log('🎭 Fish Audio generated successfully, storing data and proceeding to image generation...');
+        
+        // Store generated data in localStorage for the video generation page
+        try {
+          localStorage.setItem('generatedScript', decodedScript);
+          localStorage.setItem('generatedAudioUrl', data.audio_url);
+          localStorage.setItem('selectedVoice', JSON.stringify(selectedVoice));
+          
+          // Store template parameters for image generation
+          localStorage.setItem('templateData', JSON.stringify({
+            template,
+            duration,
+            aspectRatio,
+            script: decodedScript,
+            voiceId: selectedVoice.id,
+            voiceName: selectedVoice.name,
+            voiceCategory: selectedVoice.category,
+            voiceProvider: 'Fish Audio',
+            audioUrl: data.audio_url
+          }));
+          
+          console.log('🎭 Data stored in localStorage successfully');
+        } catch (storageError) {
+          console.error('🚨 Error storing data in localStorage:', storageError);
+          throw new Error('Failed to store data locally. Please try again.');
+        }
+        
+        // Redirect to image generation with basic parameters only
+        const imageParams = new URLSearchParams({
           template,
           duration,
-          aspectRatio,
-          script: encodeURIComponent(script),
-          voiceId: selectedVoice.id,
-          voiceName: encodeURIComponent(selectedVoice.name),
-          audioUrl: encodeURIComponent(data.audioUrl)
+          aspectRatio
         });
         
-        window.location.href = `/video-generation?${videoParams.toString()}`;
+        window.location.href = `/image-generation?${imageParams.toString()}`;
         
       } catch (error) {
-        console.error('🚨 Error generating audio:', error);
+        console.error('🚨 Error generating Fish Audio:', error);
         alert(`Failed to generate audio: ${error.message}`);
         
         // Reset button

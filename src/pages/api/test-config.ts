@@ -1,60 +1,116 @@
 import type { APIRoute } from 'astro';
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
   try {
-    console.log('🔍 test-config: Starting configuration test...');
+    console.log('🔧 Testing configuration...');
     
-    // Test all possible environment variable sources
-    const importMetaKey = import.meta.env.ELEVEN_LABS_API_KEY;
+    // Test ElevenLabs API key from multiple sources
     const processEnvKey = process.env.ELEVEN_LABS_API_KEY;
+    const cloudflareKey = (locals as any)?.runtime?.env?.ELEVEN_LABS_API_KEY;
+    const importMetaKey = import.meta.env.ELEVEN_LABS_API_KEY;
     
-    console.log('🔍 Environment check:', {
-      importMeta: {
-        available: !!importMetaKey,
-        value: importMetaKey ? `${importMetaKey.substring(0, 8)}...` : 'not found',
-        length: importMetaKey ? importMetaKey.length : 0
+    // Determine which key to use (same logic as generate-audio)
+    let ELEVEN_LABS_API_KEY;
+    let keySource = 'none';
+    
+    if (processEnvKey) {
+      ELEVEN_LABS_API_KEY = processEnvKey;
+      keySource = 'process.env';
+    } else if (cloudflareKey) {
+      ELEVEN_LABS_API_KEY = cloudflareKey;
+      keySource = 'cloudflare.runtime';
+    } else if (importMetaKey) {
+      ELEVEN_LABS_API_KEY = importMetaKey;
+      keySource = 'import.meta.env';
+    }
+    
+    // Test ElevenLabs API connection if key is available
+    let elevenLabsStatus = 'not_tested';
+    let elevenLabsError = null;
+    
+    if (ELEVEN_LABS_API_KEY && ELEVEN_LABS_API_KEY !== 'your_api_key_here') {
+      try {
+        console.log('🔧 Testing ElevenLabs API connection...');
+        const testResponse = await fetch('https://api.elevenlabs.io/v1/voices', {
+          method: 'GET',
+          headers: {
+            'xi-api-key': ELEVEN_LABS_API_KEY
+          }
+        });
+        
+        if (testResponse.ok) {
+          elevenLabsStatus = 'connected';
+          console.log('✅ ElevenLabs API connection successful');
+        } else {
+          elevenLabsStatus = 'auth_failed';
+          elevenLabsError = `HTTP ${testResponse.status}: ${testResponse.statusText}`;
+          console.log('🚨 ElevenLabs API connection failed:', elevenLabsError);
+        }
+      } catch (error) {
+        elevenLabsStatus = 'connection_failed';
+        elevenLabsError = error instanceof Error ? error.message : 'Unknown error';
+        console.log('🚨 ElevenLabs API test error:', elevenLabsError);
+      }
+    } else {
+      elevenLabsStatus = 'no_key';
+    }
+
+    // Test OpenAI configuration
+    const openaiKey = process.env.OPENAI_API_KEY || import.meta.env.OPENAI_API_KEY;
+    let openaiStatus = 'not_configured';
+    
+    if (openaiKey && openaiKey !== 'your_openai_api_key_here') {
+      openaiStatus = 'configured';
+    }
+
+    const config = {
+      timestamp: new Date().toISOString(),
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        astroEnv: import.meta.env.MODE
       },
-      processEnv: {
-        available: !!processEnvKey,
-        value: processEnvKey ? `${processEnvKey.substring(0, 8)}...` : 'not found',
-        length: processEnvKey ? processEnvKey.length : 0
+      elevenLabs: {
+        status: elevenLabsStatus,
+        error: elevenLabsError,
+        keySource: keySource,
+        keyExists: !!ELEVEN_LABS_API_KEY,
+        keyLength: ELEVEN_LABS_API_KEY ? ELEVEN_LABS_API_KEY.length : 0,
+        keyPrefix: ELEVEN_LABS_API_KEY ? ELEVEN_LABS_API_KEY.substring(0, 8) + '...' : 'none',
+        sources: {
+          processEnv: !!processEnvKey,
+          cloudflare: !!cloudflareKey,
+          importMeta: !!importMetaKey
+        }
       },
-      nodeEnv: process.env.NODE_ENV,
-      allImportMetaEnv: Object.keys(import.meta.env).filter(k => k.includes('ELEVEN')),
-      allProcessEnv: Object.keys(process.env).filter(k => k.includes('ELEVEN'))
+      openai: {
+        status: openaiStatus,
+        keyExists: !!openaiKey,
+        keyLength: openaiKey ? openaiKey.length : 0
+      },
+      supabase: {
+        url: import.meta.env.PUBLIC_SUPABASE_URL || 'not_configured',
+        hasAnonKey: !!(import.meta.env.PUBLIC_SUPABASE_ANON_KEY)
+      }
+    };
+
+    console.log('🔧 Configuration test complete:', config);
+
+    return new Response(JSON.stringify(config, null, 2), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        config: {
-          hasImportMetaKey: !!importMetaKey,
-          hasProcessEnvKey: !!processEnvKey,
-          importMetaKeyLength: importMetaKey ? importMetaKey.length : 0,
-          processEnvKeyLength: processEnvKey ? processEnvKey.length : 0,
-          nodeEnv: process.env.NODE_ENV,
-          elevenlabsKeys: {
-            importMeta: Object.keys(import.meta.env).filter(k => k.includes('ELEVEN')),
-            processEnv: Object.keys(process.env).filter(k => k.includes('ELEVEN'))
-          }
-        }
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
   } catch (error) {
-    console.error('🚨 test-config: Error:', error);
+    console.error('🚨 Configuration test error:', error);
+    
     return new Response(
       JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Configuration test failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
-      }),
+      }, null, 2),
       {
         status: 500,
         headers: {

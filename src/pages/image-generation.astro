@@ -8,8 +8,8 @@ const duration = searchParams.get('duration');
 const aspectRatio = searchParams.get('aspectRatio');
 const styleFromUrl = searchParams.get('style');
 
-// Get style from URL or localStorage
-const style = styleFromUrl || localStorage.getItem('selectedStyle') || 'photorealism';
+// Use style from URL or default to photorealism (localStorage check will be done client-side)
+const style = styleFromUrl || 'photorealism';
 
 console.log('[Image Generation Page] Parameters:', {
   template,
@@ -19,7 +19,7 @@ console.log('[Image Generation Page] Parameters:', {
 });
 
 // Validate required parameters
-if (!template || !duration || !aspectRatio || !style) {
+if (!template || !duration || !aspectRatio) {
   console.error('[Image Generation Page] Missing parameters:', {
     template,
     duration,
@@ -29,17 +29,7 @@ if (!template || !duration || !aspectRatio || !style) {
   return Astro.redirect('/?error=Missing required parameters');
 }
 
-// Validate that we're using a style the API supports
-const VALID_STYLES = [
-  'viroshorts', 'lego', 'comic-book', 'disney-toon', 'studio-chili', 
-  'childrens-book', 'photo-realism', 'minecraft', 'watchmen', 'watercolor', 
-  'expressionism', 'charcoal', 'gtav', 'anime'
-];
-
-if (!VALID_STYLES.includes(style)) {
-  console.warn(`[Image Generation Page] Invalid style '${style}', falling back to photorealism`);
-  style = 'photorealism';
-}
+// We'll do all style validation and localStorage access client-side
 ---
 
 <Layout title="Generate Images">
@@ -47,7 +37,7 @@ if (!VALID_STYLES.includes(style)) {
     <div class="max-w-7xl mx-auto">
       <div class="text-center mb-12">
         <h1 class="text-4xl font-bold text-gray-900 mb-4">Generating Images</h1>
-        <p class="text-xl text-gray-600">Creating visuals for your story (Style: {style})</p>
+        <p class="text-xl text-gray-600">Creating visuals for your story (Style: <span id="styleDisplay">{style}</span>)</p>
       </div>
 
       <!-- Progress Steps -->
@@ -128,7 +118,6 @@ if (!VALID_STYLES.includes(style)) {
         </button>
         <button
           id="continueButton"
-          onclick="window.location.href = '/video-generation' + window.location.search"
           class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
           disabled
         >
@@ -168,16 +157,64 @@ if (!VALID_STYLES.includes(style)) {
 </Layout>
 
 <script define:vars={{ style, duration, aspectRatio }}>
-  // Get script from localStorage
-  const script = localStorage.getItem('generatedScript');
-  if (!script) {
-    window.location.href = '/?error=No script found for image generation';
+  // Validate and get the final style (with localStorage access)
+  const VALID_STYLES = [
+    'viroshorts', 'lego', 'comic-book', 'disney-toon', 'studio-chili', 
+    'childrens-book', 'photo-realism', 'minecraft', 'watchmen', 'watercolor', 
+    'expressionism', 'charcoal', 'gtav', 'anime'
+  ];
+  
+  // Get style from server-passed variable, localStorage, or default
+  let finalStyle = style;
+  if (!finalStyle || finalStyle === 'photorealism') {
+    try {
+      finalStyle = localStorage.getItem('selectedStyle') || 'photorealism';
+    } catch (error) {
+      console.warn('localStorage not available, using default style');
+      finalStyle = 'photorealism';
+    }
+  }
+  
+  // Validate style
+  if (!VALID_STYLES.includes(finalStyle)) {
+    console.warn(`Invalid style '${finalStyle}', falling back to photorealism`);
+    finalStyle = 'photorealism';
+  }
+  
+  console.log('Final style selected:', finalStyle);
+  
+  // Update the style display in the UI
+  const styleDisplay = document.getElementById('styleDisplay');
+  if (styleDisplay) {
+    styleDisplay.textContent = finalStyle;
+  }
+
+  // Get script from localStorage with error handling
+  let script;
+  try {
+    script = localStorage.getItem('generatedScript');
+    if (!script) {
+      showError('Missing Script', 'No script found for image generation. Please go back and generate a script first.');
+      return;
+    }
+  } catch (error) {
+    console.error('Error accessing localStorage for script:', error);
+    showError('Storage Error', 'Unable to access stored script data. Please try refreshing the page.');
+    return;
   }
 
   // Initialize audio player with stored audio URL
-  const audioUrl = localStorage.getItem('generatedAudioUrl');
-  if (!audioUrl) {
-    window.location.href = '/?error=No audio generated for image generation';
+  let audioUrl;
+  try {
+    audioUrl = localStorage.getItem('generatedAudioUrl');
+    if (!audioUrl) {
+      showError('Missing Audio', 'No audio found for image generation. Please go back and generate audio first.');
+      return;
+    }
+  } catch (error) {
+    console.error('Error accessing localStorage for audio:', error);
+    showError('Storage Error', 'Unable to access stored audio data. Please try refreshing the page.');
+    return;
   }
 
   const audioPlayer = document.getElementById('audioPlayer');
@@ -186,9 +223,17 @@ if (!VALID_STYLES.includes(style)) {
   }
 
   // Verify we have the actual audio duration
-  const actualDuration = localStorage.getItem('actualAudioDuration');
-  if (!actualDuration) {
-    window.location.href = '/?error=Audio duration not available';
+  let actualDuration;
+  try {
+    actualDuration = localStorage.getItem('actualAudioDuration');
+    if (!actualDuration) {
+      showError('Missing Duration', 'Audio duration not available. Please go back and regenerate audio.');
+      return;
+    }
+  } catch (error) {
+    console.error('Error accessing localStorage for duration:', error);
+    showError('Storage Error', 'Unable to access stored duration data. Please try refreshing the page.');
+    return;
   }
 
   // Store generated images
@@ -321,7 +366,7 @@ if (!VALID_STYLES.includes(style)) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           script,
-          style,
+          style: finalStyle,
           audioDuration: parsedDuration,
           aspectRatio
         })
@@ -396,6 +441,30 @@ if (!VALID_STYLES.includes(style)) {
 
     continueSection.style.display = 'block';
     document.getElementById('continueButton').disabled = false;
+    
+    // Add click handler for continue button
+    document.getElementById('continueButton').onclick = () => {
+      // Get template data from localStorage
+      const templateData = localStorage.getItem('templateData');
+      if (templateData) {
+        const data = JSON.parse(templateData);
+        const videoParams = new URLSearchParams({
+          template: data.template,
+          duration: data.duration,
+          aspectRatio: data.aspectRatio
+        });
+        window.location.href = `/video-generation?${videoParams.toString()}`;
+      } else {
+        // Fallback using URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoParams = new URLSearchParams({
+          template: urlParams.get('template'),
+          duration: urlParams.get('duration'),
+          aspectRatio: urlParams.get('aspectRatio')
+        });
+        window.location.href = `/video-generation?${videoParams.toString()}`;
+      }
+    };
   }
 
   // Start the generation process automatically

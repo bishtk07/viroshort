@@ -23,11 +23,11 @@ export const POST: APIRoute = async ({ request }) => {
   
   try {
     if (!OPENAI_API_KEY) {
-      console.error('OpenAI API key not found');
-      return new Response(JSON.stringify({
-        success: false,
+      console.error('Missing OpenAI API key');
+      return new Response(JSON.stringify({ 
+        success: false, 
         error: 'OpenAI API key not configured',
-        errorType: 'configuration'
+        errorType: 'configuration_error'
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
@@ -169,13 +169,55 @@ export const POST: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' }
     });
 
-  } catch (error) {
-    console.error('Unexpected error in generate-script:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'An unexpected error occurred. Please try again.',
-      errorType: 'server_error',
-      details: error instanceof Error ? error.message : 'Unknown error'
+  } catch (error: any) {
+    console.error('OpenAI API Error:', error.response?.data || error.message);
+    
+    // Handle specific OpenAI errors
+    if (error.response?.status === 429) {
+      const errorData = error.response.data?.error;
+      
+      if (errorData?.type === 'insufficient_quota' || errorData?.code === 'insufficient_quota') {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'OpenAI quota exceeded. Please add credits to your account or use an alternative.',
+          errorType: 'quota_exceeded',
+          details: errorData?.message || 'Your OpenAI API quota has been exceeded.'
+        }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      if (errorData?.type === 'rate_limit_exceeded') {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'Rate limit exceeded. Please wait a moment and try again.',
+          errorType: 'rate_limit',
+          details: errorData?.message || 'Too many requests. Please wait.'
+        }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // Handle invalid API key
+    if (error.response?.status === 401) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Invalid OpenAI API key. Please check your configuration.',
+        errorType: 'invalid_key'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: 'Failed to generate script. Please try again.',
+      errorType: 'generation_error',
+      details: error.message
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }

@@ -11,6 +11,45 @@ function cleanScript(script: string): string {
     .trim();
 }
 
+function truncateScript(script: string, maxLength: number = 500): string {
+  if (script.length <= maxLength) {
+    return script;
+  }
+  
+  // Try to truncate at sentence boundaries
+  const sentences = script.split(/[.!?]+/);
+  let truncated = '';
+  let currentLength = 0;
+  
+  for (const sentence of sentences) {
+    const trimmedSentence = sentence.trim();
+    if (trimmedSentence && currentLength + trimmedSentence.length + 1 <= maxLength) {
+      truncated += (truncated ? '. ' : '') + trimmedSentence;
+      currentLength = truncated.length;
+    } else {
+      break;
+    }
+  }
+  
+  // If we got a good truncation, return it
+  if (truncated.length > maxLength * 0.5) {
+    return truncated + '.';
+  }
+  
+  // Otherwise, just truncate at word boundaries
+  const words = script.split(' ');
+  truncated = '';
+  for (const word of words) {
+    if ((truncated + ' ' + word).length <= maxLength) {
+      truncated += (truncated ? ' ' : '') + word;
+    } else {
+      break;
+    }
+  }
+  
+  return truncated + '...';
+}
+
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
     console.log('🔍 generate-audio: Starting API call...');
@@ -39,34 +78,44 @@ export const POST: APIRoute = async ({ request, locals }) => {
       scriptPreview: script.substring(0, 100) + (script.length > 100 ? '...' : '')
     });
     
-    // Try all possible sources for the API key with comprehensive logging
-    const cloudflareKey = (locals as any).runtime?.env?.ELEVEN_LABS_API_KEY;
-    const importMetaKey = import.meta.env.ELEVEN_LABS_API_KEY;
-    const processEnvKey = process.env.ELEVEN_LABS_API_KEY;
+    // Try to get API key from multiple sources - prioritize environment variables
+    let ELEVEN_LABS_API_KEY;
     
-    console.log('🔍 generate-audio: Environment sources check:', {
-      cloudflareRuntime: !!cloudflareKey,
-      cloudflareLength: cloudflareKey ? cloudflareKey.length : 0,
-      importMeta: !!importMetaKey,
-      importMetaLength: importMetaKey ? importMetaKey.length : 0,
-      processEnv: !!processEnvKey,
-      processEnvLength: processEnvKey ? processEnvKey.length : 0,
-      nodeEnv: process.env.NODE_ENV
+    // For development, check process.env first (most reliable in Node.js)
+    if (process.env.ELEVEN_LABS_API_KEY) {
+      ELEVEN_LABS_API_KEY = process.env.ELEVEN_LABS_API_KEY;
+      console.log('✅ generate-audio: Using API key from process.env');
+    }
+    // For production (Cloudflare Pages), check locals.runtime.env
+    else if ((locals as any)?.runtime?.env?.ELEVEN_LABS_API_KEY) {
+      ELEVEN_LABS_API_KEY = (locals as any).runtime.env.ELEVEN_LABS_API_KEY;
+      console.log('✅ generate-audio: Using API key from Cloudflare runtime');
+    }
+    // Fallback to import.meta.env (Astro/Vite)
+    else if (import.meta.env.ELEVEN_LABS_API_KEY) {
+      ELEVEN_LABS_API_KEY = import.meta.env.ELEVEN_LABS_API_KEY;
+      console.log('✅ generate-audio: Using API key from import.meta.env');
+    }
+    
+    console.log('🔍 generate-audio: API key status:', {
+      hasProcessEnv: !!process.env.ELEVEN_LABS_API_KEY,
+      hasCloudflareEnv: !!((locals as any)?.runtime?.env?.ELEVEN_LABS_API_KEY),
+      hasImportMetaEnv: !!import.meta.env.ELEVEN_LABS_API_KEY,
+      finalKeyExists: !!ELEVEN_LABS_API_KEY,
+      keyLength: ELEVEN_LABS_API_KEY ? ELEVEN_LABS_API_KEY.length : 0,
+      keyPrefix: ELEVEN_LABS_API_KEY ? ELEVEN_LABS_API_KEY.substring(0, 8) + '...' : 'none'
     });
-    
-    // Use the first available key
-    const ELEVEN_LABS_API_KEY = cloudflareKey || importMetaKey || processEnvKey;
     
     if (!ELEVEN_LABS_API_KEY || ELEVEN_LABS_API_KEY === 'your_api_key_here') {
       console.error('🚨 generate-audio: API key not found or invalid');
       return new Response(
         JSON.stringify({ 
-          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to your Cloudflare Pages environment variables.',
+          error: 'ElevenLabs API key not configured. Please add ELEVEN_LABS_API_KEY to your environment variables.',
           success: false,
           debug: {
-            cloudflareAvailable: !!cloudflareKey,
-            importMetaAvailable: !!importMetaKey,
-            processEnvAvailable: !!processEnvKey,
+            hasProcessEnv: !!process.env.ELEVEN_LABS_API_KEY,
+            hasCloudflareEnv: !!((locals as any)?.runtime?.env?.ELEVEN_LABS_API_KEY),
+            hasImportMetaEnv: !!import.meta.env.ELEVEN_LABS_API_KEY,
             nodeEnv: process.env.NODE_ENV
           }
         }), 
@@ -79,11 +128,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    console.log('✅ generate-audio: API key found, length:', ELEVEN_LABS_API_KEY.length);
-
     // Clean and prepare the script
     const cleanedScript = cleanScript(script);
-    console.log('🧹 generate-audio: Script cleaned, original:', script.length, 'cleaned:', cleanedScript.length);
+    const finalScript = truncateScript(cleanedScript, 400); // Limit to 400 characters for reasonable credit usage
+    
+    console.log('🧹 generate-audio: Script processing:', {
+      original: script.length,
+      cleaned: cleanedScript.length,
+      final: finalScript.length,
+      truncated: finalScript.length < cleanedScript.length,
+      preview: finalScript.substring(0, 100) + (finalScript.length > 100 ? '...' : '')
+    });
+    
+    // Warn user if script was truncated
+    const wasTruncated = finalScript.length < cleanedScript.length;
     
     console.log('🌐 generate-audio: Making request to ElevenLabs API...');
 
@@ -95,7 +153,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         'xi-api-key': ELEVEN_LABS_API_KEY
       },
       body: JSON.stringify({
-        text: cleanedScript,
+        text: finalScript,
         model_id: "eleven_multilingual_v2",
         voice_settings: {
           stability: 0.6,
@@ -115,27 +173,37 @@ export const POST: APIRoute = async ({ request, locals }) => {
         statusText: response.statusText,
         errorText,
         voiceId,
-        scriptLength: cleanedScript.length,
-        keyLength: ELEVEN_LABS_API_KEY.length
+        scriptLength: finalScript.length,
+        keyLength: ELEVEN_LABS_API_KEY.length,
+        keyPrefix: ELEVEN_LABS_API_KEY.substring(0, 8) + '...'
       });
+      
+      // Handle specific error cases
+      let userFriendlyError = `ElevenLabs API error: ${response.status} ${response.statusText}`;
+      
+      if (response.status === 401) {
+        userFriendlyError = 'Invalid ElevenLabs API key. Please check your API key configuration.';
+      } else if (response.status === 429) {
+        userFriendlyError = 'ElevenLabs API rate limit exceeded. Please try again in a few minutes.';
+      } else if (response.status === 422) {
+        userFriendlyError = 'Invalid voice ID or script. Please check your input and try again.';
+      }
       
       return new Response(
         JSON.stringify({ 
-          error: `ElevenLabs API error: ${response.status} ${response.statusText}`,
+          error: userFriendlyError,
           details: errorText,
           success: false,
           debug: {
+            status: response.status,
             voiceId,
-            scriptLength: cleanedScript.length,
+            scriptLength: finalScript.length,
             apiKeyLength: ELEVEN_LABS_API_KEY.length,
-            requestBody: {
-              textLength: cleanedScript.length,
-              model: "eleven_multilingual_v2"
-            }
+            apiKeyPrefix: ELEVEN_LABS_API_KEY.substring(0, 8) + '...'
           }
         }), 
         { 
-          status: response.status,
+          status: response.status >= 500 ? 500 : 400, // Map client errors to 400, server errors to 500
           headers: {
             'Content-Type': 'application/json'
           }
@@ -175,9 +243,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
       JSON.stringify({
         success: true,
         audioUrl,
+        wasTruncated,
         metadata: {
           voiceId,
-          scriptLength: cleanedScript.length,
+          scriptLength: finalScript.length,
+          originalLength: script.length,
+          cleanedLength: cleanedScript.length,
           audioSize: audioBuffer.byteLength,
           timestamp: new Date().toISOString()
         }

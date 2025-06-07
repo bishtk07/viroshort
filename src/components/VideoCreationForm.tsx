@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+// @ts-ignore
 import { motion } from 'framer-motion';
+// @ts-ignore
 import { Video, Mic, Palette, Globe, Clock, ChevronRight } from 'lucide-react';
 
 interface VideoSettings {
