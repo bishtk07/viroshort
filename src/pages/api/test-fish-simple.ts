@@ -27,7 +27,7 @@ export const GET: APIRoute = async ({ locals }) => {
     }
 
     // Test with one of the voice IDs from your console logs
-    const testVoiceId = '728f6ff2240d49308e8137ffe66008e2'; // ElevenLabs Adam from logs
+    const testVoiceId = '802e3bc2b27e49c2995d23ef70e6ac89'; // Energetic Male from your logs
     console.log('🔧 Testing voice ID:', testVoiceId);
 
     // Try Fish Audio TTS generation
@@ -49,30 +49,54 @@ export const GET: APIRoute = async ({ locals }) => {
     console.log('🔧 TTS Response:', {
       status: ttsResponse.status,
       statusText: ttsResponse.statusText,
-      ok: ttsResponse.ok
+      ok: ttsResponse.ok,
+      headers: Object.fromEntries(ttsResponse.headers.entries())
     });
 
-    let errorDetails = null;
-    if (!ttsResponse.ok) {
-      try {
-        errorDetails = await ttsResponse.text();
-        console.log('🔧 TTS Error details:', errorDetails);
-      } catch (e) {
-        console.log('🔧 Could not read error details');
+    let responseContent = null;
+    let isAudioResponse = false;
+    
+    try {
+      const contentType = ttsResponse.headers.get('content-type') || '';
+      
+      if (contentType.includes('audio/') || contentType.includes('application/octet-stream')) {
+        // This is audio data
+        isAudioResponse = true;
+        const audioData = await ttsResponse.arrayBuffer();
+        responseContent = {
+          type: 'audio',
+          contentType: contentType,
+          size: audioData.byteLength,
+          message: 'Audio generated successfully!'
+        };
+      } else {
+        // This is probably JSON or text error message
+        responseContent = await ttsResponse.text();
+        try {
+          responseContent = JSON.parse(responseContent);
+        } catch (e) {
+          // Keep as text if not JSON
+        }
       }
-    } else {
-      console.log('🔧 TTS SUCCESS!');
+    } catch (e) {
+      console.log('🔧 Error reading response:', e);
+      responseContent = { error: 'Could not read response', details: e };
     }
 
     return new Response(JSON.stringify({
-      success: ttsResponse.ok,
+      success: ttsResponse.ok && isAudioResponse,
       testVoiceId: testVoiceId,
-      response: {
+      apiResponse: {
         status: ttsResponse.status,
         statusText: ttsResponse.statusText,
-        ok: ttsResponse.ok
+        ok: ttsResponse.ok,
+        contentType: ttsResponse.headers.get('content-type'),
+        isAudioResponse: isAudioResponse
       },
-      errorDetails: errorDetails,
+      responseContent: responseContent,
+      diagnosis: ttsResponse.ok 
+        ? (isAudioResponse ? 'SUCCESS: Audio generated!' : 'API returned 200 but no audio - check response content')
+        : 'API returned error - check response content',
       timestamp: new Date().toISOString()
     }), {
       status: 200,

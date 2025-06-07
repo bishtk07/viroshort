@@ -176,50 +176,80 @@ export const POST: APIRoute = async ({ request, locals }) => {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok,
+        contentType: response.headers.get('content-type'),
         voiceId: validVoiceId
       });
 
       if (response.ok) {
-        // Success! Get the audio data
-        const audioData = await response.arrayBuffer();
-        const audioBase64 = Buffer.from(audioData).toString('base64');
+        // Check content type to see if we got audio or an error message
+        const contentType = response.headers.get('content-type') || '';
+        console.log('🐟 generate-fish-audio: Response content type:', contentType);
         
-        console.log('✅ generate-fish-audio: Audio generated successfully:', {
-          audioSize: audioData.byteLength,
-          base64Length: audioBase64.length,
-          format: format,
-          voiceUsed: validVoiceId
-        });
+        if (contentType.includes('audio/') || contentType.includes('application/octet-stream')) {
+          // Success! Get the audio data
+          const audioData = await response.arrayBuffer();
+          const audioBase64 = Buffer.from(audioData).toString('base64');
+          
+          console.log('✅ generate-fish-audio: Audio generated successfully:', {
+            audioSize: audioData.byteLength,
+            base64Length: audioBase64.length,
+            format: format,
+            voiceUsed: validVoiceId
+          });
 
-        // Construct response
-        const responseData = {
-          success: true,
-          audio_url: `data:audio/${format};base64,${audioBase64}`,
-          audio_base64: audioBase64,
-          format: format,
-          original_voice_id: validVoiceId,
-          used_voice_id: validVoiceId,
-          script_info: {
-            original_text: script,
-            final_text: finalScript,
-            was_truncated: false,
-            original_length: finalScript.length,
-            final_length: finalScript.length,
-            truncation_message: null
-          },
-          voice_info: {
-            voice_id: validVoiceId,
-            provider: 'Fish Audio'
-          }
-        };
+          // Construct response
+          const responseData = {
+            success: true,
+            audio_url: `data:audio/${format};base64,${audioBase64}`,
+            audio_base64: audioBase64,
+            format: format,
+            original_voice_id: validVoiceId,
+            used_voice_id: validVoiceId,
+            script_info: {
+              original_text: script,
+              final_text: finalScript,
+              was_truncated: false,
+              original_length: finalScript.length,
+              final_length: finalScript.length,
+              truncation_message: null
+            },
+            voice_info: {
+              voice_id: validVoiceId,
+              provider: 'Fish Audio'
+            }
+          };
 
-        return new Response(
-          JSON.stringify(responseData),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
+          return new Response(
+            JSON.stringify(responseData),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+        } else {
+          // API returned 200 but not audio - probably an error message
+          const responseText = await response.text();
+          console.log(`🚨 generate-fish-audio: API returned 200 but not audio:`, {
+            contentType: contentType,
+            responseText: responseText,
+            voiceId: validVoiceId
+          });
+          
+          return new Response(
+            JSON.stringify({ 
+              error: `Fish Audio API returned 200 but no audio content`,
+              details: responseText,
+              contentType: contentType,
+              success: false,
+              voiceId: validVoiceId,
+              troubleshooting: "The Fish Audio API responded successfully but didn't return audio. This might be a voice compatibility issue."
+            }), 
+            { 
+              status: 500,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+        }
       } else {
         // Log the error details
         const errorText = await response.text();
