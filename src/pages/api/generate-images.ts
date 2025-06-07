@@ -8,8 +8,40 @@ interface GenerateImagesRequest {
   aspectRatio?: string
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   try {
+    console.log("🎨 generate-images: Starting image generation...");
+    
+    // Get Replicate API token from Cloudflare environment variables
+    const replicateApiKey = 
+      (locals as any)?.runtime?.env?.REPLICATE_API_TOKEN ||
+      import.meta.env.REPLICATE_API_TOKEN ||
+      process.env.REPLICATE_API_TOKEN;
+
+    console.log('🎨 generate-images: Environment check:', {
+      hasCloudflareEnv: !!((locals as any)?.runtime?.env?.REPLICATE_API_TOKEN),
+      hasImportMetaEnv: !!import.meta.env.REPLICATE_API_TOKEN,
+      hasProcessEnv: !!process.env.REPLICATE_API_TOKEN,
+      finalKeyFound: !!replicateApiKey,
+      keyLength: replicateApiKey ? replicateApiKey.length : 0
+    });
+
+    if (!replicateApiKey) {
+      console.error('🚨 generate-images: Replicate API key not found');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Replicate API key not configured. Please add REPLICATE_API_TOKEN to your environment variables.',
+        debug: {
+          hasCloudflareEnv: !!((locals as any)?.runtime?.env?.REPLICATE_API_TOKEN),
+          hasImportMetaEnv: !!import.meta.env.REPLICATE_API_TOKEN,
+          hasProcessEnv: !!process.env.REPLICATE_API_TOKEN
+        }
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const data: GenerateImagesRequest = await request.json()
     console.log('🎬 Image generation request received:', data)
 
@@ -59,17 +91,6 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     console.log(`🎨 Generating ${prompts.length} images using REPLICATE FLUX`)
-
-    // ✅ RESTORED: Using REPLICATE FLUX instead of OpenAI
-    const replicateApiKey = import.meta.env.REPLICATE_API_TOKEN
-    if (!replicateApiKey) {
-      console.error('❌ Replicate API key not found')
-      return new Response(JSON.stringify({ 
-        error: 'Replicate API key not configured' 
-      }), { status: 500 })
-    }
-
-    console.log('🔑 Replicate API key configured')
 
     // ✅ FIXED: Generate images sequentially to avoid overwhelming the API
     const results = []

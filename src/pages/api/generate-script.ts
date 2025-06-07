@@ -1,7 +1,5 @@
 import type { APIRoute } from 'astro';
 
-const OPENAI_API_KEY = import.meta.env.OPENAI_API_KEY;
-
 // Template definitions for better script generation
 const TEMPLATES: Record<string, string> = {
   'custom': 'Create a custom video script that is engaging and memorable. Focus on: ',
@@ -18,22 +16,40 @@ const TEMPLATES: Record<string, string> = {
   'life-tips': 'Share a practical and valuable life hack. Area: '
 };
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
+  // Get OpenAI API key from Cloudflare environment variables
+  const OPENAI_API_KEY = 
+    (locals as any)?.runtime?.env?.OPENAI_API_KEY ||
+    import.meta.env.OPENAI_API_KEY ||
+    process.env.OPENAI_API_KEY;
+
+  console.log('📝 generate-script: Environment check:', {
+    hasCloudflareEnv: !!((locals as any)?.runtime?.env?.OPENAI_API_KEY),
+    hasImportMetaEnv: !!import.meta.env.OPENAI_API_KEY,
+    hasProcessEnv: !!process.env.OPENAI_API_KEY,
+    finalKeyFound: !!OPENAI_API_KEY,
+    keyLength: OPENAI_API_KEY ? OPENAI_API_KEY.length : 0
+  });
+
+  if (!OPENAI_API_KEY) {
+    console.error('🚨 generate-script: OpenAI API key not found');
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your environment variables.',
+      debug: {
+        hasCloudflareEnv: !!((locals as any)?.runtime?.env?.OPENAI_API_KEY),
+        hasImportMetaEnv: !!import.meta.env.OPENAI_API_KEY,
+        hasProcessEnv: !!process.env.OPENAI_API_KEY
+      }
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   console.log('=== GENERATE SCRIPT API CALLED ===');
   
   try {
-    if (!OPENAI_API_KEY) {
-      console.error('Missing OpenAI API key');
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: 'OpenAI API key not configured',
-        errorType: 'configuration_error'
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
     const { prompt, duration, template } = await request.json();
     console.log('Request data:', { prompt, duration, template });
 

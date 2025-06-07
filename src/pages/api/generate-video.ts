@@ -21,10 +21,49 @@ interface VideoSegment {
   };
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   try {
+    // Get the request data first
     const data: VideoGenerationRequest = await request.json();
     console.log('🎬 AUDIO-SYNCHRONIZED VIDEO REQUEST:', data);
+    
+    // Get API keys from Cloudflare environment variables
+    const OPENAI_API_KEY = 
+      (locals as any)?.runtime?.env?.OPENAI_API_KEY ||
+      import.meta.env.OPENAI_API_KEY || 
+      process.env.OPENAI_API_KEY;
+      
+    const REPLICATE_API_TOKEN = 
+      (locals as any)?.runtime?.env?.REPLICATE_API_TOKEN ||
+      import.meta.env.REPLICATE_API_TOKEN || 
+      process.env.REPLICATE_API_TOKEN;
+      
+    const FISH_AUDIO_API_KEY = 
+      (locals as any)?.runtime?.env?.FISH_AUDIO_API_KEY ||
+      import.meta.env.FISH_AUDIO_API_KEY || 
+      process.env.FISH_AUDIO_API_KEY;
+
+    console.log('🎬 generate-video: Environment check:', {
+      hasOpenAIKey: !!OPENAI_API_KEY,
+      hasReplicateToken: !!REPLICATE_API_TOKEN,
+      hasFishAudioKey: !!FISH_AUDIO_API_KEY,
+      hasCloudflareEnv: !!((locals as any)?.runtime?.env)
+    });
+
+    if (!OPENAI_API_KEY || !REPLICATE_API_TOKEN || !FISH_AUDIO_API_KEY) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Missing required API keys. Please check your environment variables.',
+        missing: {
+          openai: !OPENAI_API_KEY,
+          replicate: !REPLICATE_API_TOKEN,
+          fish_audio: !FISH_AUDIO_API_KEY
+        }
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     const { script, audioUrl, imageUrls, aspectRatio, audioDuration, style } = data;
 

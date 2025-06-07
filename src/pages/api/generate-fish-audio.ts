@@ -73,10 +73,40 @@ function isValidVoiceId(voiceId: string): boolean {
   return uuidRegex.test(voiceId) || fishAudioRegex.test(voiceId);
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   try {
-    console.log('🐟 generate-fish-audio: Starting Fish Audio TTS generation...');
+    console.log('🎤 generate-fish-audio: Starting Fish Audio TTS generation...');
     
+    // Get Fish Audio API key from Cloudflare environment variables
+    const FISH_AUDIO_API_KEY = 
+      (locals as any)?.runtime?.env?.FISH_AUDIO_API_KEY ||
+      import.meta.env.FISH_AUDIO_API_KEY ||
+      process.env.FISH_AUDIO_API_KEY;
+
+    console.log('🎤 generate-fish-audio: Environment check:', {
+      hasCloudflareEnv: !!((locals as any)?.runtime?.env?.FISH_AUDIO_API_KEY),
+      hasImportMetaKey: !!import.meta.env.FISH_AUDIO_API_KEY,
+      hasProcessEnvKey: !!process.env.FISH_AUDIO_API_KEY,
+      finalKeyFound: !!FISH_AUDIO_API_KEY,
+      keyLength: FISH_AUDIO_API_KEY ? FISH_AUDIO_API_KEY.length : 0
+    });
+
+    if (!FISH_AUDIO_API_KEY || FISH_AUDIO_API_KEY === 'your_fish_audio_api_key_here') {
+      console.error('🚨 generate-fish-audio: Fish Audio API key not found');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Fish Audio API key not configured. Please add FISH_AUDIO_API_KEY to your environment variables.',
+        debug: {
+          hasCloudflareEnv: !!((locals as any)?.runtime?.env?.FISH_AUDIO_API_KEY),
+          hasImportMetaEnv: !!import.meta.env.FISH_AUDIO_API_KEY,
+          hasProcessEnv: !!process.env.FISH_AUDIO_API_KEY
+        }
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     // Get request body
     const body = await request.json();
     const { script, voiceId, format = 'mp3' } = body;
@@ -122,32 +152,6 @@ export const POST: APIRoute = async ({ request }) => {
       format: format
     });
     
-    // Get Fish Audio API key
-    const FISH_AUDIO_API_KEY = 
-      import.meta.env.FISH_AUDIO_API_KEY || 
-      process.env.FISH_AUDIO_API_KEY;
-    
-    console.log('🐟 generate-fish-audio: Environment check:', {
-      hasImportMetaKey: !!import.meta.env.FISH_AUDIO_API_KEY,
-      hasProcessEnvKey: !!process.env.FISH_AUDIO_API_KEY,
-      finalKeyFound: !!FISH_AUDIO_API_KEY,
-      keyLength: FISH_AUDIO_API_KEY ? FISH_AUDIO_API_KEY.length : 0
-    });
-    
-    if (!FISH_AUDIO_API_KEY || FISH_AUDIO_API_KEY === 'your_fish_audio_api_key_here') {
-      console.error('🚨 generate-fish-audio: Fish Audio API key not found');
-      return new Response(
-        JSON.stringify({ 
-          error: 'Fish Audio API key not configured. Please add FISH_AUDIO_API_KEY to your environment variables.',
-          success: false
-        }), 
-        { 
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
     console.log('✅ generate-fish-audio: API key found, generating audio...');
 
     // Try with the provided voice ID first, then fallback voices

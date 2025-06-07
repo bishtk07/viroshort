@@ -141,20 +141,35 @@ function processVoice(voice: FishAudioModel): ProcessedVoice {
   };
 }
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
   try {
     console.log('🎤 get-fish-voices: Starting to fetch Fish Audio voices...');
     
-    // Get Fish Audio API key
+    // Get Fish Audio API key from Cloudflare environment variables
     const FISH_AUDIO_API_KEY = 
+      (locals as any)?.runtime?.env?.FISH_AUDIO_API_KEY ||
       import.meta.env.FISH_AUDIO_API_KEY || 
       process.env.FISH_AUDIO_API_KEY;
     
+    console.log('🎤 get-fish-voices: Environment check:', {
+      hasCloudflareEnv: !!((locals as any)?.runtime?.env?.FISH_AUDIO_API_KEY),
+      hasImportMetaEnv: !!import.meta.env.FISH_AUDIO_API_KEY,
+      hasProcessEnv: !!process.env.FISH_AUDIO_API_KEY,
+      finalKeyFound: !!FISH_AUDIO_API_KEY,
+      keyLength: FISH_AUDIO_API_KEY ? FISH_AUDIO_API_KEY.length : 0
+    });
+    
     if (!FISH_AUDIO_API_KEY || FISH_AUDIO_API_KEY === 'your_fish_audio_api_key_here') {
+      console.error('🚨 get-fish-voices: Fish Audio API key not found');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Fish Audio API key not configured' 
+          error: 'Fish Audio API key not configured. Please add FISH_AUDIO_API_KEY to your environment variables.',
+          debug: {
+            hasCloudflareEnv: !!((locals as any)?.runtime?.env?.FISH_AUDIO_API_KEY),
+            hasImportMetaEnv: !!import.meta.env.FISH_AUDIO_API_KEY,
+            hasProcessEnv: !!process.env.FISH_AUDIO_API_KEY
+          }
         }), 
         { 
           status: 500,
@@ -162,6 +177,8 @@ export const GET: APIRoute = async () => {
         }
       );
     }
+
+    console.log('✅ get-fish-voices: API key found, fetching voices...');
 
     // Fetch voices from Fish Audio API with larger page size
     const response = await fetch('https://api.fish.audio/model?page_size=100&page_number=1&visibility=public', {
