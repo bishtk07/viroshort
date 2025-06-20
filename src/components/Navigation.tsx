@@ -9,12 +9,22 @@ export const Navigation: React.FC = () => {
       // Import supabase client
       const { supabase } = await import('../lib/supabase');
       
+      if (!supabase) {
+        console.error('Supabase client not available');
+        window.location.href = '/landing';
+        return;
+      }
+      
       // Sign out the user
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Error signing out:', error);
       }
+      
+      // Clear any stored sessions
+      document.cookie = 'sb-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      document.cookie = 'sb-refresh-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
       
       // Redirect to landing page
       window.location.href = '/landing';
@@ -33,7 +43,7 @@ export const Navigation: React.FC = () => {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <div className="flex items-center">
-              <a href="/" className="flex items-center">
+              <a href="/dashboard" className="flex items-center">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">
                   Viroshort
                 </h1>
@@ -42,7 +52,7 @@ export const Navigation: React.FC = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <NavItem href="/" icon="🏠" label="Home" />
+              <NavItem href="/dashboard" icon="🏠" label="Home" />
               <NavItem href="/guides" icon="📚" label="Guides" />
               <NavItem href="/billing" icon="💳" label="Billing" />
               
@@ -80,7 +90,7 @@ export const Navigation: React.FC = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 bg-white">
             <div className="px-4 py-3 space-y-1">
-              <MobileNavItem href="/" icon="🏠" label="Home" />
+              <MobileNavItem href="/dashboard" icon="🏠" label="Home" />
               <MobileNavItem href="/guides" icon="📚" label="Guides" />
               <MobileNavItem href="/billing" icon="💳" label="Billing" />
               

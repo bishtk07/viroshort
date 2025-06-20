@@ -2,7 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { supabase } from './lib/supabase';
 
 // Define public routes that don't require authentication
-const publicRoutes = ['/landing', '/api/paddle-webhook'];
+const publicRoutes = ['/landing', '/api/paddle-webhook', '/'];
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
@@ -18,7 +18,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
   
-  // Check if user is authenticated
+  // For protected routes (like /dashboard), check authentication
   const cookies = context.cookies;
   const accessToken = cookies.get('sb-access-token')?.value;
   const refreshToken = cookies.get('sb-refresh-token')?.value;

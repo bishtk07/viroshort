@@ -1,5 +1,27 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+
+// Check if user is already authenticated and redirect to dashboard
+if (supabase) {
+  const cookies = Astro.cookies;
+  const accessToken = cookies.get('sb-access-token')?.value;
+  const refreshToken = cookies.get('sb-refresh-token')?.value;
+
+  if (accessToken && refreshToken) {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+      
+      // If user is already logged in, redirect to dashboard
+      if (!error && user) {
+        return Astro.redirect('/dashboard');
+      }
+    } catch (error) {
+      // Ignore errors, user will stay on landing page
+      console.log('Landing page auth check error:', error);
+    }
+  }
+}
 ---
 
 <Layout title="ViroShort - Make Money with AI Videos on TikTok">
@@ -2046,7 +2068,7 @@ import Layout from '../layouts/Layout.astro';
           if (error) throw error;
 
           // Redirect to home page on successful sign in
-          window.location.href = '/';
+          window.location.href = '/dashboard';
         }
       } catch (error) {
         console.error('Authentication error:', error);
