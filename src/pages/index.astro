@@ -1,14 +1,29 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
 
 // Check authentication - redirect to landing if not authenticated
-if (Astro.request.method === 'GET') {
-  const authHeader = Astro.request.headers.get('cookie');
+const cookies = Astro.cookies;
+const accessToken = cookies.get('sb-access-token')?.value;
+const refreshToken = cookies.get('sb-refresh-token')?.value;
+
+if (!accessToken || !refreshToken) {
+  // No tokens found, redirect to landing
+  return Astro.redirect('/landing');
+}
+
+// Verify the session is valid
+try {
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
   
-  // If no session cookie or not authenticated, redirect to landing
-  if (!authHeader || !authHeader.includes('sb-access-token') || !authHeader.includes('sb-refresh-token')) {
+  if (error || !user) {
+    // Invalid session, redirect to landing
     return Astro.redirect('/landing');
   }
+} catch (error) {
+  // Any error, redirect to landing
+  console.error('Auth verification error:', error);
+  return Astro.redirect('/landing');
 }
 
 const templates = [
@@ -540,26 +555,32 @@ declare global {
 </Layout>
 
 <script>
-  // ✅ Check authentication first - redirect to landing if not authenticated
-  (async () => {
+  // ✅ Import browser compatibility utilities
+  import { safeStorage, detectBrowserFeatures, initBrowserCompat } from '../utils/browserCompat.js';
+  
+  // ✅ Double-check authentication on client side
+  window.addEventListener('DOMContentLoaded', async () => {
     try {
-      // Dynamic import to avoid SSR issues
       const { supabase } = await import('../lib/supabase.ts');
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        window.location.href = '/landing';
+        console.log('No session found, redirecting to landing...');
+        window.location.replace('/landing');
         return;
       }
+      
+      // Also set up auth state listener for real-time changes
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT' || !session) {
+          window.location.replace('/landing');
+        }
+      });
     } catch (error) {
-      console.error('Auth check error:', error);
-      window.location.href = '/landing';
-      return;
+      console.error('Client auth check error:', error);
+      window.location.replace('/landing');
     }
-  })();
-
-  // ✅ Import browser compatibility utilities
-  import { safeStorage, detectBrowserFeatures, initBrowserCompat } from '../utils/browserCompat.js';
+  });
   
   // Initialize browser compatibility
   const browserFeatures = initBrowserCompat();
