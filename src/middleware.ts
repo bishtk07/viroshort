@@ -12,6 +12,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
   
+  // Skip authentication check if Supabase client is not initialized (during build)
+  if (!supabase) {
+    console.warn('Supabase client not initialized, skipping auth check');
+    return next();
+  }
+  
   // Check if user is authenticated
   const cookies = context.cookies;
   const accessToken = cookies.get('sb-access-token')?.value;

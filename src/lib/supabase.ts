@@ -3,11 +3,25 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+// Create a conditional client that doesn't fail during build
+let supabase: ReturnType<typeof createClient> | null = null;
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+} else {
+  console.warn('Supabase environment variables not found - client not initialized');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Export the client with null check
+export { supabase };
+
+// Helper function to get supabase client with error handling
+export function getSupabaseClient() {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Check environment variables.');
+  }
+  return supabase;
+}
 
 export type Database = {
   public: {

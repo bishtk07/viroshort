@@ -3,27 +3,32 @@ import Layout from '../layouts/Layout.astro';
 import { supabase } from '../lib/supabase';
 
 // Check authentication - redirect to landing if not authenticated
-const cookies = Astro.cookies;
-const accessToken = cookies.get('sb-access-token')?.value;
-const refreshToken = cookies.get('sb-refresh-token')?.value;
+// Skip check if Supabase client is not initialized (during build)
+if (supabase) {
+  const cookies = Astro.cookies;
+  const accessToken = cookies.get('sb-access-token')?.value;
+  const refreshToken = cookies.get('sb-refresh-token')?.value;
 
-if (!accessToken || !refreshToken) {
-  // No tokens found, redirect to landing
-  return Astro.redirect('/landing');
-}
-
-// Verify the session is valid
-try {
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-  
-  if (error || !user) {
-    // Invalid session, redirect to landing
+  if (!accessToken || !refreshToken) {
+    // No tokens found, redirect to landing
     return Astro.redirect('/landing');
   }
-} catch (error) {
-  // Any error, redirect to landing
-  console.error('Auth verification error:', error);
-  return Astro.redirect('/landing');
+
+  // Verify the session is valid
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    
+    if (error || !user) {
+      // Invalid session, redirect to landing
+      return Astro.redirect('/landing');
+    }
+  } catch (error) {
+    // Any error, redirect to landing
+    console.error('Auth verification error:', error);
+    return Astro.redirect('/landing');
+  }
+} else {
+  console.warn('Supabase client not initialized during build, skipping server-side auth check');
 }
 
 const templates = [
