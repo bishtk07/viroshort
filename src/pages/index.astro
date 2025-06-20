@@ -1,35 +1,7 @@
 ---
-import { supabase } from '../lib/supabase';
-
-// Root route - redirect users based on authentication status
-if (supabase) {
-  const cookies = Astro.cookies;
-  const accessToken = cookies.get('sb-access-token')?.value;
-  const refreshToken = cookies.get('sb-refresh-token')?.value;
-
-  if (!accessToken || !refreshToken) {
-    // No tokens found, redirect to landing
-    return Astro.redirect('/landing');
-  }
-
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-    
-    if (error || !user) {
-      // Invalid session, redirect to landing
-      return Astro.redirect('/landing');
-    } else {
-      // Valid session, redirect to dashboard
-      return Astro.redirect('/dashboard');
-    }
-  } catch (error) {
-    console.error('Root auth check error:', error);
-    return Astro.redirect('/landing');
-  }
-} else {
-  // During build time, default to landing page
-  return Astro.redirect('/landing');
-}
+// Root route - always redirect to landing page
+// This ensures viroshorts.com always goes to the landing page first
+return Astro.redirect('/landing');
 ---
 
 <!DOCTYPE html>

@@ -17,11 +17,15 @@ if (supabase) {
         return Astro.redirect('/dashboard');
       }
     } catch (error) {
-      // Ignore errors, user will stay on landing page
+      // Clear invalid cookies and stay on landing page
       console.log('Landing page auth check error:', error);
+      Astro.cookies.delete('sb-access-token');
+      Astro.cookies.delete('sb-refresh-token');
     }
   }
 }
+
+// If no valid authentication, user stays on landing page (which is correct)
 ---
 
 <Layout title="ViroShort - Make Money with AI Videos on TikTok">
@@ -1847,8 +1851,29 @@ if (supabase) {
     const authSubmitBtn = document.getElementById('authSubmitBtn');
     const googleSignInBtn = document.getElementById('googleSignInBtn');
 
+    // Check authentication status on page load and redirect if authenticated
+    async function checkAuthAndRedirect() {
+      if (supabase) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            console.log('User already authenticated, redirecting to dashboard...');
+            window.location.replace('/dashboard');
+            return true;
+          }
+        } catch (error) {
+          console.error('Landing page client auth check error:', error);
+        }
+      }
+      return false;
+    }
+
     // FAQ Functionality
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      // First check if user is authenticated and redirect if so
+      const isAuthenticated = await checkAuthAndRedirect();
+      if (isAuthenticated) return; // Stop execution if redirecting
+
       const faqItems = document.querySelectorAll('.faq-item');
       
       faqItems.forEach(item => {
