@@ -1,6 +1,16 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
+// Check authentication - redirect to landing if not authenticated
+if (Astro.request.method === 'GET') {
+  const authHeader = Astro.request.headers.get('cookie');
+  
+  // If no session cookie or not authenticated, redirect to landing
+  if (!authHeader || !authHeader.includes('sb-access-token') || !authHeader.includes('sb-refresh-token')) {
+    return Astro.redirect('/landing');
+  }
+}
+
 const templates = [
   {
     id: 'custom',
@@ -530,6 +540,24 @@ declare global {
 </Layout>
 
 <script>
+  // ✅ Check authentication first - redirect to landing if not authenticated
+  (async () => {
+    try {
+      // Dynamic import to avoid SSR issues
+      const { supabase } = await import('../lib/supabase.ts');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        window.location.href = '/landing';
+        return;
+      }
+    } catch (error) {
+      console.error('Auth check error:', error);
+      window.location.href = '/landing';
+      return;
+    }
+  })();
+
   // ✅ Import browser compatibility utilities
   import { safeStorage, detectBrowserFeatures, initBrowserCompat } from '../utils/browserCompat.js';
   
