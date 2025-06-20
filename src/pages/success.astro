@@ -1,0 +1,78 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Payment Successful - ViroShort">
+  <div class="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+      <!-- Success Icon -->
+      <div class="mb-6">
+        <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Success Message -->
+      <h1 class="text-2xl font-bold text-gray-900 mb-4">Payment Successful!</h1>
+      <p class="text-gray-600 mb-8">
+        Thank you for your purchase. Your subscription has been activated and you can start creating amazing videos right away.
+      </p>
+
+      <!-- Action Buttons -->
+      <div class="space-y-3">
+        <a 
+          href="/" 
+          class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors block"
+        >
+          Start Creating Videos
+        </a>
+        <a 
+          href="/dashboard" 
+          class="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-lg font-medium hover:bg-gray-200 transition-colors block"
+        >
+          View Dashboard
+        </a>
+      </div>
+
+      <!-- Support Information -->
+      <div class="mt-8 pt-6 border-t border-gray-200">
+        <p class="text-sm text-gray-500">
+          Need help? <a href="/support" class="text-blue-600 hover:text-blue-700">Contact our support team</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Handle URL parameters to show specific success information
+    const urlParams = new URLSearchParams(window.location.search);
+    const plan = urlParams.get('plan');
+    const period = urlParams.get('period');
+    
+    if (plan) {
+      // Customize success message based on plan
+      const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
+      const periodText = period === 'weekly' ? 'Weekly' : 'Monthly';
+      
+      // You could update the success message here
+      console.log(`Successfully subscribed to ${planName} ${periodText} plan`);
+      
+      // Optional: Send analytics event
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'purchase', {
+          transaction_id: Date.now().toString(),
+          value: 0, // You'd get this from Paddle webhook
+          currency: 'USD',
+          items: [{
+            item_id: plan,
+            item_name: `${planName} ${periodText}`,
+            category: 'subscription',
+            quantity: 1
+          }]
+        });
+      }
+    }
+  </script>
+</Layout> 

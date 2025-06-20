@@ -1,0 +1,316 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Billing - Viroshort">
+  <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Choose Your Plan</h1>
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+          Transform your ideas into engaging videos using AI-powered tools. Choose from our
+          templates or create your own custom content.
+        </p>
+      </div>
+
+      <!-- Billing Toggle -->
+      <div class="flex justify-center mb-8">
+        <div class="relative bg-gray-100 p-1 rounded-lg">
+          <button
+            id="monthlyBtn"
+            class="relative px-6 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-white text-gray-900 shadow-sm"
+          >
+            Monthly
+          </button>
+          <button
+            id="weeklyBtn" 
+            class="relative px-6 py-2 text-sm font-medium rounded-md transition-all duration-200 text-gray-700 hover:text-gray-900"
+          >
+            Weekly
+          </button>
+        </div>
+      </div>
+
+      <!-- Pricing Cards -->
+      <div class="max-w-5xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <!-- Header -->
+          <div class="bg-gray-900 text-white p-6">
+            <h2 class="text-2xl font-bold flex items-center gap-2">
+              <span>📊</span>
+              Final Pricing Table
+            </h2>
+          </div>
+
+          <!-- Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-4 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Plan
+                  </th>
+                  <th class="px-6 py-4 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Monthly Price
+                  </th>
+                  <th class="px-6 py-4 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Weekly Price
+                  </th>
+                  <th class="px-6 py-4 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    % Savings with Monthly
+                  </th>
+                  <th class="px-6 py-4 text-left text-sm font-medium text-gray-900 uppercase tracking-wider">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <!-- Starter Plan -->
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">Starter</div>
+                    <div class="text-sm text-gray-500">50 credits per month</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">$19/month</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">$8/week</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-green-600 font-medium">~12.5% savings</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <button 
+                      class="upgrade-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      data-plan="starter"
+                      data-monthly-price="pri_01jy2at6gfgcdcxt4dq94jb50z"
+                      data-weekly-price="pri_01jy2at8bv9vr8fxq49kq4y3j6"
+                    >
+                      Upgrade
+                    </button>
+                  </td>
+                </tr>
+
+                <!-- Daily Plan -->
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">Daily</div>
+                    <div class="text-sm text-gray-500">200 credits per month</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">$39/month</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">$15/week</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-green-600 font-medium">~20% savings</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <button 
+                      class="upgrade-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      data-plan="daily"
+                      data-monthly-price="pri_01jy2atgsxxgm8wnhgdqhed9mq"
+                      data-weekly-price="pri_01jy2atkp7mwc19kz6ybyjtxkc"
+                    >
+                      Upgrade
+                    </button>
+                  </td>
+                </tr>
+
+                <!-- Hardcore Plan -->
+                <tr class="hover:bg-gray-50">
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">Hardcore</div>
+                    <div class="text-sm text-gray-500">500 credits per month</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">$69/month</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">$26/week</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-green-600 font-medium">~20% savings</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <button 
+                      class="upgrade-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      data-plan="hardcore"
+                      data-monthly-price="pri_01jy2atpsyh60aa8ahb1kmqym3"
+                      data-weekly-price="pri_01jy2atqzv79317fs6bz3qacvn"
+                    >
+                      Upgrade
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div class="text-center p-6 bg-white rounded-lg shadow-sm">
+            <div class="text-3xl mb-4">🚀</div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Fast Generation</h3>
+            <p class="text-gray-600">Create professional videos in minutes with AI-powered tools</p>
+          </div>
+          <div class="text-center p-6 bg-white rounded-lg shadow-sm">
+            <div class="text-3xl mb-4">🎨</div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Multiple Styles</h3>
+            <p class="text-gray-600">Choose from various art styles and templates</p>
+          </div>
+          <div class="text-center p-6 bg-white rounded-lg shadow-sm">
+            <div class="text-3xl mb-4">📱</div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">All Formats</h3>
+            <p class="text-gray-600">Generate for TikTok, Instagram, YouTube and more</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Paddle when page loads
+    let paddleInitialized = false;
+    
+    function initializePaddle() {
+      if (!paddleInitialized && window.Paddle) {
+        try {
+          // Use production environment and token from environment variable
+          window.Paddle.Environment.set('production');
+          
+          // Get the client token from the environment
+          const clientToken = 'PUBLIC_PADDLE_CLIENT_TOKEN' in window 
+            ? window.PUBLIC_PADDLE_CLIENT_TOKEN 
+            : import.meta.env.PUBLIC_PADDLE_CLIENT_TOKEN;
+          
+          if (!clientToken) {
+            throw new Error('Paddle client token not found in environment variables');
+          }
+          
+          // Then initialize with token and event callback
+          window.Paddle.Initialize({
+            token: clientToken,
+            eventCallback: function(data) {
+              console.log('Paddle event:', data);
+              
+              if (data.name === 'checkout.completed') {
+                // Redirect to success page with plan information
+                const plan = data.data?.custom_data?.plan || 'unknown';
+                const period = data.data?.custom_data?.period || 'monthly';
+                window.location.href = `/success?plan=${plan}&period=${period}`;
+              } else if (data.name === 'checkout.closed') {
+                console.log('Checkout was closed');
+              } else if (data.name === 'checkout.error') {
+                console.error('Checkout error:', data.error);
+                alert('There was an error processing your payment. Please try again.');
+              }
+            }
+          });
+          paddleInitialized = true;
+          console.log('✅ Paddle initialized successfully');
+        } catch (error) {
+          console.error('❌ Error initializing Paddle:', error);
+          paddleInitialized = false;
+          throw error;
+        }
+      }
+    }
+
+    // Initialize when page loads
+    window.addEventListener('load', initializePaddle);
+
+    // Billing period toggle
+    let isMonthly = true;
+    const monthlyBtn = document.getElementById('monthlyBtn');
+    const weeklyBtn = document.getElementById('weeklyBtn');
+
+    function updateBillingToggle() {
+      if (isMonthly) {
+        monthlyBtn.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
+        monthlyBtn.classList.remove('text-gray-700', 'hover:text-gray-900');
+        weeklyBtn.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+        weeklyBtn.classList.add('text-gray-700', 'hover:text-gray-900');
+      } else {
+        weeklyBtn.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
+        weeklyBtn.classList.remove('text-gray-700', 'hover:text-gray-900');
+        monthlyBtn.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+        monthlyBtn.classList.add('text-gray-700', 'hover:text-gray-900');
+      }
+    }
+
+    monthlyBtn.addEventListener('click', () => {
+      isMonthly = true;
+      updateBillingToggle();
+    });
+
+    weeklyBtn.addEventListener('click', () => {
+      isMonthly = false;
+      updateBillingToggle();
+    });
+
+    // Handle upgrade buttons
+    document.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('upgrade-btn')) {
+        const button = e.target;
+        const plan = button.dataset.plan;
+        const monthlyPriceId = button.dataset.monthlyPrice;
+        const weeklyPriceId = button.dataset.weeklyPrice;
+        
+        const priceId = isMonthly ? monthlyPriceId : weeklyPriceId;
+        
+        // Ensure Paddle is initialized
+        if (!window.Paddle) {
+          alert('Payment system is still loading. Please wait a moment and try again.');
+          return;
+        }
+        
+        if (!paddleInitialized) {
+          initializePaddle();
+          // Wait a moment for initialization
+          setTimeout(() => {
+            openCheckout(button, plan, priceId);
+          }, 1000);
+        } else {
+          openCheckout(button, plan, priceId);
+        }
+      }
+    });
+
+    // Separate function to handle checkout opening
+    function openCheckout(button, plan, priceId) {
+      try {
+        // Show loading state
+        button.disabled = true;
+        button.textContent = 'Loading...';
+        
+        // Open Paddle checkout
+        window.Paddle.Checkout.open({
+          items: [
+            {
+              priceId: priceId,
+              quantity: 1
+            }
+          ],
+          settings: {
+            displayMode: 'overlay',
+            theme: 'light',
+            locale: 'en'
+          }
+        });
+        
+      } catch (error) {
+        console.error('Checkout error:', error);
+        alert('There was an error opening the checkout. Please try again.');
+      } finally {
+        // Reset button state
+        button.disabled = false;
+        button.textContent = 'Upgrade';
+      }
+    }
+  </script>
+</Layout> 

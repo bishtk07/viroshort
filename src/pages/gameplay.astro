@@ -1,0 +1,226 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+
+const { data: gameplayVideos } = await supabase
+  .from('gameplay_library')
+  .select('*')
+  .order('title');
+---
+
+<Layout title="Gameplay Video Generator - Wava">
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-bold mb-8">Gameplay Video Generator</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Gameplay Selection -->
+      <div class="space-y-4">
+        <h2 class="text-2xl font-semibold">Choose Gameplay</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {gameplayVideos?.map((video) => (
+            <button
+              class="relative aspect-video rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+              data-video-id={video.id}
+            >
+              <img
+                src={video.thumbnail}
+                alt={video.title}
+                class="w-full h-full object-cover"
+              />
+              <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                <span class="text-white font-medium">{video.title}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <!-- Commentary Upload -->
+      <div class="space-y-4">
+        <h2 class="text-2xl font-semibold">Your Commentary</h2>
+        <div class="border-2 border-dashed rounded-lg p-8 text-center">
+          <input
+            type="file"
+            id="commentary-upload"
+            accept="video/*"
+            class="hidden"
+          />
+          <label
+            for="commentary-upload"
+            class="cursor-pointer block"
+          >
+            <div class="space-y-2">
+              <svg
+                class="mx-auto h-12 w-12 text-muted-foreground"
+                stroke="currentColor"
+                fill="none"
+                viewBox="0 0 48 48"
+                aria-hidden="true"
+              >
+                <path
+                  d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <div class="text-sm text-muted-foreground">
+                <span class="font-medium">Click to upload</span> or drag and drop
+              </div>
+              <p class="text-xs text-muted-foreground">
+                MP4, WebM up to 100MB
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <!-- Overlay Style -->
+        <div class="space-y-4">
+          <h3 class="font-medium">Overlay Style</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <button
+              class="p-4 border rounded-lg hover:border-primary transition-colors"
+              data-style="pip"
+            >
+              <h4 class="font-medium">Picture in Picture</h4>
+              <p class="text-sm text-muted-foreground">Commentary in corner</p>
+            </button>
+            <button
+              class="p-4 border rounded-lg hover:border-primary transition-colors"
+              data-style="side"
+            >
+              <h4 class="font-medium">Side by Side</h4>
+              <p class="text-sm text-muted-foreground">Split screen view</p>
+            </button>
+          </div>
+        </div>
+
+        <button
+          class="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+          id="generate-gameplay"
+        >
+          Generate Video
+        </button>
+      </div>
+    </div>
+
+    <!-- Progress Section -->
+    <div class="mt-8 hidden" id="progress-section">
+      <h2 class="text-2xl font-semibold mb-4">Generation Progress</h2>
+      <div class="space-y-4">
+        <div class="flex items-center space-x-4">
+          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <span class="text-primary">1</span>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-medium">Processing Videos</h3>
+            <p class="text-sm text-muted-foreground">Preparing your footage...</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <span class="text-primary">2</span>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-medium">Combining Videos</h3>
+            <p class="text-sm text-muted-foreground">Merging gameplay and commentary...</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <span class="text-primary">3</span>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-medium">Finalizing</h3>
+            <p class="text-sm text-muted-foreground">Adding finishing touches...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  // Client-side JavaScript for handling gameplay video generation
+  const generateBtn = document.getElementById('generate-gameplay');
+  const progressSection = document.getElementById('progress-section');
+  const commentaryInput = document.getElementById('commentary-upload') as HTMLInputElement;
+  let selectedGameplayId: string | null = null;
+  let selectedStyle: 'pip' | 'side' | null = null;
+
+  // Handle gameplay selection
+  document.querySelectorAll('[data-video-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('[data-video-id]').forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-primary');
+      });
+      button.classList.add('ring-2', 'ring-primary');
+      selectedGameplayId = button.getAttribute('data-video-id');
+    });
+  });
+
+  // Handle overlay style selection
+  document.querySelectorAll('[data-style]').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('[data-style]').forEach(btn => {
+        btn.classList.remove('border-primary');
+      });
+      button.classList.add('border-primary');
+      selectedStyle = button.getAttribute('data-style') as 'pip' | 'side';
+    });
+  });
+
+  generateBtn?.addEventListener('click', async () => {
+    if (!selectedGameplayId) {
+      alert('Please select a gameplay video');
+      return;
+    }
+
+    if (!commentaryInput?.files?.length) {
+      alert('Please upload your commentary video');
+      return;
+    }
+
+    if (!selectedStyle) {
+      alert('Please select an overlay style');
+      return;
+    }
+
+    if (progressSection) {
+      progressSection.classList.remove('hidden');
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('gameplayId', selectedGameplayId);
+      formData.append('style', selectedStyle);
+      formData.append('commentary', commentaryInput.files[0]);
+
+      const response = await fetch('/api/generate-gameplay', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const { videoId } = await response.json();
+      
+      // Poll for video status
+      const checkStatus = async () => {
+        const statusResponse = await fetch(`/api/video-status/${videoId}`);
+        const { status, videoUrl } = await statusResponse.json();
+        
+        if (status === 'completed' && videoUrl) {
+          window.location.href = `/video/${videoId}`;
+        } else if (status === 'failed') {
+          alert('Video generation failed. Please try again.');
+        } else {
+          setTimeout(checkStatus, 5000);
+        }
+      };
+
+      checkStatus();
+    } catch (error) {
+      console.error('Error generating video:', error);
+      alert('Failed to generate video. Please try again.');
+    }
+  });
+</script> 

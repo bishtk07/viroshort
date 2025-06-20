@@ -1,0 +1,211 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+
+const { data: templates } = await supabase
+  .from('templates')
+  .select('*')
+  .order('title');
+---
+
+<Layout title="Generate Shorts - Wava">
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-bold mb-8">Generate Shorts</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Template Selection -->
+      <div class="space-y-4">
+        <h2 class="text-2xl font-semibold">Choose a Template</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {templates?.map((template) => (
+            <button
+              class="p-4 border rounded-lg hover:border-primary transition-colors"
+              data-template-id={template.id}
+            >
+              <h3 class="font-medium">{template.title}</h3>
+              <p class="text-sm text-muted-foreground">{template.genre}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <!-- Script Input -->
+      <div class="space-y-4">
+        <h2 class="text-2xl font-semibold">Your Script</h2>
+        <textarea
+          class="w-full h-48 p-4 border rounded-lg resize-none"
+          placeholder="Enter your script or let AI generate one..."
+        ></textarea>
+        <div class="flex justify-end space-x-4">
+          <button
+            class="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80"
+            id="generate-script"
+          >
+            Generate with AI
+          </button>
+          <button
+            class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+            id="generate-video"
+          >
+            Generate Video
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Section -->
+    <div class="mt-8 hidden" id="progress-section">
+      <h2 class="text-2xl font-semibold mb-4">Generation Progress</h2>
+      <div class="space-y-4">
+        <div class="flex items-center space-x-4">
+          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <span class="text-primary">1</span>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-medium">Generating Script</h3>
+            <p class="text-sm text-muted-foreground">Creating engaging content...</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <span class="text-primary">2</span>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-medium">Creating Images</h3>
+            <p class="text-sm text-muted-foreground">Generating visuals for each scene...</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <span class="text-primary">3</span>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-medium">Adding Voiceover</h3>
+            <p class="text-sm text-muted-foreground">Converting text to speech...</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <span class="text-primary">4</span>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-medium">Compiling Video</h3>
+            <p class="text-sm text-muted-foreground">Putting it all together...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  // Client-side JavaScript for handling video generation
+  const generateScriptBtn = document.getElementById('generate-script');
+  const generateVideoBtn = document.getElementById('generate-video');
+  const progressSection = document.getElementById('progress-section');
+  const scriptTextarea = document.querySelector('textarea');
+
+  generateScriptBtn?.addEventListener('click', async () => {
+    const selectedTemplate = document.querySelector('[data-template-id].border-primary');
+    if (!selectedTemplate) {
+      alert('Please select a template first');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/generate-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId: selectedTemplate.getAttribute('data-template-id')
+        })
+      });
+
+      const { script } = await response.json();
+      if (scriptTextarea) {
+        scriptTextarea.value = script;
+      }
+    } catch (error) {
+      console.error('Error generating script:', error);
+      alert('Failed to generate script. Please try again.');
+    }
+  });
+
+  generateVideoBtn?.addEventListener('click', async () => {
+    if (!scriptTextarea?.value) {
+      alert('Please enter or generate a script first');
+      return;
+    }
+
+    if (progressSection) {
+      progressSection.classList.remove('hidden');
+    }
+
+    try {
+      // Get authentication token
+      const { supabase } = await import('../lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        alert('You must be logged in to generate videos');
+        window.location.href = '/login';
+        return;
+      }
+
+      const response = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          script: scriptTextarea.value
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 402) {
+          // Insufficient credits
+          alert(errorData.message || 'You have no credits remaining. Please upgrade your plan to continue.');
+          window.location.href = '/billing';
+          return;
+        }
+        throw new Error(errorData.error || 'Failed to generate video');
+      }
+
+      const { videoId } = await response.json();
+      // Poll for video status
+      const checkStatus = async () => {
+        const statusResponse = await fetch(`/api/video-status/${videoId}`);
+        const { status, videoUrl } = await statusResponse.json();
+        
+        if (status === 'completed' && videoUrl) {
+          window.location.href = `/video/${videoId}`;
+        } else if (status === 'failed') {
+          alert('Video generation failed. Please try again.');
+        } else {
+          setTimeout(checkStatus, 5000);
+        }
+      };
+
+      checkStatus();
+    } catch (error) {
+      console.error('Error generating video:', error);
+      alert(error.message || 'Failed to generate video. Please try again.');
+      if (progressSection) {
+        progressSection.classList.add('hidden');
+      }
+    }
+  });
+
+  // Template selection
+  document.querySelectorAll('[data-template-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('[data-template-id]').forEach(btn => {
+        btn.classList.remove('border-primary');
+      });
+      button.classList.add('border-primary');
+    });
+  });
+</script> 

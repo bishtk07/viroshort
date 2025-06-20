@@ -1,0 +1,594 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// Get URL parameters
+const searchParams = Astro.url.searchParams;
+const template = searchParams.get('template');
+const duration = searchParams.get('duration');
+const aspectRatio = searchParams.get('aspectRatio');
+const styleFromUrl = searchParams.get('style');
+
+// Use style from URL or default to photorealism (localStorage check will be done client-side)
+const style = styleFromUrl || 'photorealism';
+
+console.log('[Image Generation Page] Parameters:', {
+  template,
+  duration,
+  aspectRatio,
+  style
+});
+
+// Validate required parameters
+if (!template || !duration || !aspectRatio) {
+  console.error('[Image Generation Page] Missing parameters:', {
+    template,
+    duration,
+    aspectRatio,
+    style
+  });
+  return Astro.redirect('/?error=Missing required parameters');
+}
+
+// We'll do all style validation and localStorage access client-side
+---
+
+<Layout title="Generate Images">
+  <main class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Generating Images</h1>
+        <p class="text-xl text-gray-600">Creating visuals for your story (Style: <span id="styleDisplay">{style}</span>)</p>
+      </div>
+
+      <!-- Progress Steps -->
+      <div class="max-w-3xl mx-auto mb-12">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center">
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">✓</div>
+            <div class="h-1 w-16 bg-blue-500"></div>
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">✓</div>
+            <div class="h-1 w-16 bg-blue-500"></div>
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">✓</div>
+            <div class="h-1 w-16 bg-blue-500"></div>
+            <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">4</div>
+          </div>
+          <div class="text-sm text-gray-600">
+            <span>Template → Script → Voice → Images → Video</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audio Preview Section -->
+      <div class="max-w-3xl mx-auto mb-8 bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Generated Audio</h2>
+        <audio id="audioPlayer" controls class="w-full">
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+
+      <!-- Image Generation Status -->
+      <div id="imageStatus" class="max-w-3xl mx-auto mb-8">
+        <div class="flex flex-col items-center justify-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <span class="mt-4 text-gray-600">Initializing image generation...</span>
+          
+          <!-- Analysis Display -->
+          <div id="analysisDisplay" class="w-full mt-8 bg-gray-50 rounded-lg p-6 hidden">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Segment Analysis</h3>
+            <div class="space-y-4">
+              <div id="fullScript" class="bg-blue-50 p-4 rounded border border-blue-200">
+                <h4 class="font-medium text-blue-700 mb-2">📜 Full Script</h4>
+                <p class="text-gray-700 text-sm max-h-24 overflow-y-auto"></p>
+              </div>
+              <div id="currentScript" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">🎯 Current Segment Being Processed</h4>
+                <p class="text-gray-600 italic"></p>
+              </div>
+              <div id="emotions" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Emotions & Mood</h4>
+                <p class="text-gray-600"></p>
+              </div>
+              <div id="visualElements" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Visual Elements</h4>
+                <p class="text-gray-600"></p>
+              </div>
+              <div id="composition" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Composition</h4>
+                <p class="text-gray-600"></p>
+              </div>
+              <div id="colorPalette" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Color Palette</h4>
+                <p class="text-gray-600"></p>
+              </div>
+              <div id="emphasis" class="bg-white p-4 rounded border border-gray-200">
+                <h4 class="font-medium text-gray-700 mb-2">Emphasis</h4>
+                <p class="text-gray-600"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Image Grid -->
+      <div id="imageGrid" class="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6" style="display: none;"></div>
+
+      <!-- Continue Section -->
+      <div id="continueSection" class="max-w-3xl mx-auto mt-8 flex justify-between items-center" style="display: none;">
+        <button
+          onclick="window.history.back()"
+          class="px-4 py-2 text-gray-600 hover:text-gray-800"
+        >
+          Go Back
+        </button>
+        <button
+          id="continueButton"
+          class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled
+        >
+          Continue to Video Generation
+        </button>
+      </div>
+
+      <!-- Error Display -->
+      <div id="errorDisplay" class="max-w-3xl mx-auto mt-8" style="display: none;">
+        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm leading-5 font-medium text-red-800" id="errorTitle">
+                Error
+              </h3>
+              <div class="mt-2 text-sm leading-5 text-red-700" id="errorMessage">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 text-center">
+          <button
+            onclick="generateImages()"
+            class="bg-red-100 text-red-700 px-4 py-2 rounded hover:bg-red-200"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  /* Add any specific styles if needed */
+</style>
+
+<script>
+  // ✅ Import browser compatibility utilities (bundled, not CDN)
+  import { safeStorage, SafeAudio, detectBrowserFeatures, initBrowserCompat } from '../utils/browserCompat.js';
+  
+  // Initialize browser compatibility on page load
+  const browserFeatures = initBrowserCompat();
+  
+  // Event handlers and status updates
+  let isGenerating = false;
+  // ✅ REMOVED: SSE-related variables that were causing errors
+  // let eventSource = null;
+  // let retryCount = 0;
+  // const MAX_RETRIES = 3;
+  // const RETRY_DELAY = 2000;
+
+  // Get URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  // ✅ Use safe storage instead of direct localStorage
+  let script = safeStorage.getItem('generatedScript') || urlParams.get('script');
+  let audioUrl = safeStorage.getItem('generatedAudioUrl') || urlParams.get('audioUrl');
+  let finalStyle = safeStorage.getItem('finalStyle') || urlParams.get('style') || 'photorealism';
+  let actualDuration = safeStorage.getItem('actualAudioDuration') || urlParams.get('duration');
+  let aspectRatio = safeStorage.getItem('selectedAspectRatio') || urlParams.get('aspectRatio') || '16:9';
+
+  console.log('Script:', script);
+  console.log('Audio URL:', audioUrl);
+  console.log('Final Style:', finalStyle);
+  console.log('Actual Duration:', actualDuration);
+  console.log('Aspect Ratio:', aspectRatio);
+
+  // ✅ Enhanced audio duration calculation with browser compatibility
+  async function calculateAudioDuration() {
+    // ✅ FIX: Always use actualDuration if available, don't validate against expected duration
+    if (actualDuration && actualDuration !== 'null' && actualDuration !== '0') {
+      console.log('✅ Using existing calculated duration:', actualDuration + 's');
+      return actualDuration;
+    }
+
+    console.log('🔍 Audio duration not found, attempting calculation...');
+    
+    if (!audioUrl) {
+      throw new Error('Audio URL not available');
+    }
+
+    // Method 1: Try to get from Fish Audio template data
+    const templateData = safeStorage.getItem('templateData');
+    if (templateData) {
+      try {
+        const parsedData = JSON.parse(templateData);
+        if (parsedData.actualAudioDuration) {
+          actualDuration = parsedData.actualAudioDuration;
+          safeStorage.setItem('actualAudioDuration', actualDuration);
+          console.log('Recovered audio duration from template data:', actualDuration);
+          return actualDuration;
+        }
+      } catch (e) {
+        console.log('Could not parse template data for duration recovery');
+      }
+    }
+    
+    // Method 2: Use SafeAudio for cross-browser compatibility
+    console.log('Attempting duration calculation with SafeAudio...');
+    
+    try {
+      // Estimate duration based on typical Fish Audio response (fallback)
+      const estimatedDuration = 30; // Default fallback
+      
+      const safeAudio = new SafeAudio(audioUrl, { 
+        estimatedDuration: estimatedDuration 
+      });
+      
+      const duration = await new Promise((resolve, reject) => {
+        safeAudio.onloadedmetadata(() => {
+          const audioDuration = safeAudio.getDuration();
+          if (audioDuration && audioDuration > 0) {
+            console.log('Successfully calculated duration with SafeAudio:', audioDuration);
+            resolve(audioDuration.toString());
+          } else {
+            reject(new Error('Invalid duration from SafeAudio'));
+          }
+        });
+        
+        safeAudio.onerror((error) => {
+          console.error('SafeAudio failed to load:', error);
+          reject(new Error('SafeAudio load error: ' + error));
+        });
+        
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          reject(new Error('Audio loading timeout'));
+        }, 10000);
+      });
+      
+      actualDuration = duration;
+      safeStorage.setItem('actualAudioDuration', actualDuration);
+      return actualDuration;
+      
+    } catch (safeAudioError) {
+      console.log('SafeAudio method failed:', safeAudioError.message);
+      
+      // Method 3: Fallback to native Audio element (if available)
+      if (browserFeatures.audio) {
+        try {
+          const duration = await new Promise((resolve, reject) => {
+            const audioElement = new Audio();
+            let timeoutId;
+            
+            const cleanup = () => {
+              if (timeoutId) clearTimeout(timeoutId);
+              audioElement.removeEventListener('loadedmetadata', onLoaded);
+              audioElement.removeEventListener('error', onError);
+            };
+            
+            const onLoaded = () => {
+              cleanup();
+              if (audioElement.duration && audioElement.duration !== Infinity && !isNaN(audioElement.duration)) {
+                console.log('Fallback: Successfully calculated duration with native Audio element:', audioElement.duration);
+                resolve(audioElement.duration.toString());
+              } else {
+                reject(new Error('Invalid duration from native Audio element'));
+              }
+            };
+            
+            const onError = (error) => {
+              cleanup();
+              reject(new Error('Native Audio element failed to load: ' + error));
+            };
+            
+            audioElement.addEventListener('loadedmetadata', onLoaded);
+            audioElement.addEventListener('error', onError);
+            
+            // Set timeout for audio loading
+            timeoutId = setTimeout(() => {
+              cleanup();
+              reject(new Error('Audio loading timeout'));
+            }, 10000);
+            
+            audioElement.src = audioUrl;
+            audioElement.load();
+          });
+          
+          actualDuration = duration;
+          safeStorage.setItem('actualAudioDuration', actualDuration);
+          return actualDuration;
+          
+        } catch (nativeError) {
+          console.error('Native Audio method failed:', nativeError.message);
+        }
+      }
+      
+      // Final fallback: Use estimated duration
+      console.warn('All audio duration calculation methods failed, using estimated duration');
+      
+      if (audioUrl.startsWith('data:')) {
+        actualDuration = '30'; // Default for Fish Audio base64
+        console.log('Using default duration for Fish Audio base64:', actualDuration);
+      } else {
+        throw new Error('Audio duration not available. Please go back and regenerate audio.');
+      }
+      
+      safeStorage.setItem('actualAudioDuration', actualDuration);
+      return actualDuration;
+    }
+  }
+
+  // Validate inputs and setup page
+  async function initializePage() {
+    try {
+      // ✅ FIX: Update style display with proper formatting
+      const styleDisplay = document.getElementById('styleDisplay');
+      if (styleDisplay && finalStyle) {
+        // Convert style ID to display name
+        const styleNames = {
+          'photorealism': 'Photo Realism',
+          'viroshorts': 'Viroshorts Cinematic',
+          'lego': 'LEGO Style',
+          'comic-book': 'Comic Book',
+          'disney-toon': 'Disney Toon',
+          'studio-chili': 'Studio Chili',
+          'childrens-book': 'Children\'s Book',
+          'minecraft': 'Minecraft',
+          'watchmen': 'Watchmen',
+          'watercolor': 'Watercolor',
+          'expressionism': 'Expressionism',
+          'charcoal': 'Charcoal',
+          'gtav': 'GTAV',
+          'anime': 'Anime'
+        };
+        styleDisplay.textContent = styleNames[finalStyle] || finalStyle;
+      }
+
+      if (!script) {
+        showError('Script Missing', 'Script not available. Please go back to generate a script first.');
+        return;
+      }
+
+      if (!audioUrl) {
+        showError('Audio Missing', 'Audio not available. Please go back and regenerate audio.');
+        return;
+      }
+
+      // ✅ FIX: Don't throw error for missing style, use default
+      if (!finalStyle) {
+        console.warn('⚠️ Style not found, using default photorealism');
+        finalStyle = 'photorealism';
+        safeStorage.setItem('finalStyle', finalStyle);
+      }
+
+      // Calculate audio duration with enhanced methods
+      try {
+        await calculateAudioDuration();
+        console.log('✅ Final audio duration for image generation:', actualDuration + 's');
+        
+        if (!actualDuration || actualDuration === 'null' || actualDuration === '0') {
+          // ✅ FIX: Don't throw error, use fallback duration
+          console.warn('⚠️ Audio duration could not be determined, using default 30s');
+          actualDuration = '30';
+          safeStorage.setItem('actualAudioDuration', actualDuration);
+        }
+      } catch (durationError) {
+        console.warn('⚠️ Duration calculation failed, using default:', durationError.message);
+        actualDuration = '30';
+        safeStorage.setItem('actualAudioDuration', actualDuration);
+      }
+
+      // ✅ FIX: Set up audio player with generated audio
+      const audioPlayer = document.getElementById('audioPlayer');
+      if (audioPlayer && audioUrl) {
+        try {
+          audioPlayer.src = audioUrl;
+          console.log('✅ Audio player set up with URL:', audioUrl);
+          
+          // Add event listeners for audio loading
+          audioPlayer.addEventListener('loadedmetadata', () => {
+            console.log('✅ Audio metadata loaded, duration:', audioPlayer.duration + 's');
+          });
+          
+          audioPlayer.addEventListener('error', (e) => {
+            console.warn('⚠️ Audio player error:', e);
+          });
+        } catch (audioError) {
+          console.warn('⚠️ Failed to set up audio player:', audioError.message);
+        }
+      }
+
+      // Display the full script in the analysis section
+      const fullScriptElement = document.querySelector('#fullScript p');
+      if (fullScriptElement && script) {
+        fullScriptElement.textContent = script;
+        console.log('Full script displayed in analysis section');
+      }
+
+      // Start generation process
+      generateImages();
+      
+    } catch (error) {
+      console.error('Error during page initialization:', error);
+      showError('Initialization Error', 'Failed to initialize page: ' + error.message);
+    }
+  }
+
+  function updateStatus(message) {
+    const statusElement = document.querySelector('#imageStatus p');
+    if (statusElement) {
+      statusElement.textContent = message;
+    }
+    console.log('Status:', message);
+  }
+
+  function showError(title, message) {
+    const errorDisplay = document.getElementById('errorDisplay');
+    const errorTitle = errorDisplay.querySelector('h3');
+    const errorMessage = errorDisplay.querySelector('p');
+    
+    errorTitle.textContent = title;
+    errorMessage.textContent = message;
+    errorDisplay.style.display = 'block';
+    console.error(title + ':', message);
+  }
+
+  function proceedWithDirectGeneration() {
+    console.log('Proceeding with direct generation (no SSE)');
+    updateStatus('Generating images directly...');
+    // Continue with image generation without real-time updates
+  }
+
+  // ✅ REMOVED: SSE functionality that was causing 404 errors
+  // setupEventSource() function removed for production stability
+
+  // ✅ REMOVED: closeEventSource function - no longer needed
+  // function closeEventSource() removed for production stability
+
+  // Generate images
+  async function generateImages() {
+    if (isGenerating) return;
+    
+    try {
+      isGenerating = true;
+      const imageStatus = document.getElementById('imageStatus');
+      const imageGrid = document.getElementById('imageGrid');
+      const continueSection = document.getElementById('continueSection');
+      const errorDisplay = document.getElementById('errorDisplay');
+      const analysisDisplay = document.getElementById('analysisDisplay');
+      
+      // Reset UI
+      imageStatus.style.display = 'block';
+      imageGrid.style.display = 'none';
+      imageGrid.innerHTML = '';
+      continueSection.style.display = 'none';
+      errorDisplay.style.display = 'none';
+      analysisDisplay.classList.add('hidden');
+      
+      const parsedDuration = parseInt(actualDuration);
+      const targetImageCount = Math.ceil(parsedDuration / 3.5);
+      updateStatus(`Starting image generation (${targetImageCount} images for ${parsedDuration}s audio)...`);
+
+      // ✅ REMOVED: SSE setup that was causing errors
+      // Proceed directly with image generation
+
+      // Start image generation
+      const response = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script,
+          style: finalStyle,
+          audioDuration: parsedDuration,
+          aspectRatio
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'API error during image generation');
+      }
+
+      const data = await response.json();
+      handleGenerationComplete(data.images);
+    } catch (error) {
+      console.error('Error in generateImages function:', error);
+      showError('Image Generation Failed', error.message);
+    } finally {
+      isGenerating = false;
+    }
+  }
+
+  function handleGenerationComplete(images) {
+    const imageGrid = document.getElementById('imageGrid');
+    const continueSection = document.getElementById('continueSection');
+    const analysisDisplay = document.getElementById('analysisDisplay');
+    const imageStatus = document.getElementById('imageStatus');
+    
+    // Store generated images
+    safeStorage.setItem('generatedImages', JSON.stringify(images));
+
+    // Hide analysis display and status
+    analysisDisplay.classList.add('hidden');
+    imageStatus.style.display = 'none';
+
+    // Display generated images
+    imageGrid.style.display = 'grid';
+    imageGrid.innerHTML = ''; // Clear any existing images
+
+    // Create and append images with loading state
+    images.forEach((imageUrl, index) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'relative';
+      
+      const img = document.createElement('img');
+      img.className = 'w-full h-auto rounded-lg shadow-sm opacity-0 transition-opacity duration-300';
+      img.alt = `Generated image ${index + 1}`;
+      
+      wrapper.innerHTML = `
+        <div class="absolute inset-0 flex items-center justify-center bg-gray-200 rounded-lg">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      `;
+      
+      img.onload = () => {
+        img.classList.add('opacity-100');
+        wrapper.innerHTML = '';
+        wrapper.appendChild(img);
+      };
+      
+      img.onerror = () => {
+        wrapper.innerHTML = `
+          <div class="absolute inset-0 flex items-center justify-center bg-red-100 rounded-lg p-2">
+            <p class="text-red-500 text-xs text-center">Failed to load image</p>
+          </div>
+        `;
+      };
+      
+      img.src = imageUrl;
+      imageGrid.appendChild(wrapper);
+    });
+
+    continueSection.style.display = 'block';
+    document.getElementById('continueButton').disabled = false;
+    
+    // Add click handler for continue button
+    document.getElementById('continueButton').onclick = () => {
+      // Get template data from safeStorage
+      const templateData = safeStorage.getItem('templateData');
+      if (templateData) {
+        const data = JSON.parse(templateData);
+        const videoParams = new URLSearchParams({
+          template: data.template,
+          duration: data.duration,
+          aspectRatio: data.aspectRatio
+        });
+        window.location.href = `/video-generation?${videoParams.toString()}`;
+      } else {
+        // Fallback using URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoParams = new URLSearchParams({
+          template: urlParams.get('template'),
+          duration: urlParams.get('duration'),
+          aspectRatio: urlParams.get('aspectRatio')
+        });
+        window.location.href = `/video-generation?${videoParams.toString()}`;
+      }
+    };
+  }
+
+  // Initialize the page when DOM is ready
+  document.addEventListener('DOMContentLoaded', initializePage);
+</script> 

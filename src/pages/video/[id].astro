@@ -1,0 +1,81 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase } from '../../lib/supabase';
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/');
+}
+
+const { data: video, error } = await supabase
+  .from('videos')
+  .select('*')
+  .eq('id', id)
+  .single();
+
+if (error || !video) {
+  return Astro.redirect('/');
+}
+
+const session = await supabase.auth.getSession();
+if (!session.data.session || video.user_id !== session.data.session.user.id) {
+  return Astro.redirect('/');
+}
+---
+
+<Layout title="Video Preview - Wava">
+  <main class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+      <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-4">Your Video</h1>
+        <p class="text-muted-foreground">
+          {video.type === 'shorts' ? 'AI-Generated Short' : 'Gameplay Video'}
+        </p>
+      </div>
+
+      <div class="aspect-video bg-black rounded-lg overflow-hidden mb-8">
+        <video
+          src={video.final_url}
+          controls
+          class="w-full h-full"
+          poster={video.type === 'shorts' ? video.images?.[0] : undefined}
+        >
+          Your browser does not support the video tag.
+        </video>
+      </div>
+
+      <div class="flex justify-between items-center">
+        <div class="space-y-1">
+          <h2 class="text-2xl font-semibold">Download</h2>
+          <p class="text-sm text-muted-foreground">
+            Save your video to your device
+          </p>
+        </div>
+        <a
+          href={video.final_url}
+          download
+          class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+        >
+          Download Video
+        </a>
+      </div>
+
+      {video.type === 'shorts' && video.script && (
+        <div class="mt-8 p-6 bg-muted rounded-lg">
+          <h3 class="text-xl font-semibold mb-4">Script</h3>
+          <p class="whitespace-pre-wrap">{video.script}</p>
+        </div>
+      )}
+
+      <div class="mt-8 flex justify-end">
+        <a
+          href={video.type === 'shorts' ? '/shorts' : '/gameplay'}
+          class="text-primary hover:underline"
+        >
+          ← Create Another Video
+        </a>
+      </div>
+    </div>
+  </main>
+</Layout> 

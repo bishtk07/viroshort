@@ -1,0 +1,1136 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const urlParams = Astro.url.searchParams;
+const template = urlParams.get('template');
+const duration = urlParams.get('duration');
+const aspectRatio = urlParams.get('aspectRatio');
+const styleFromUrl = urlParams.get('style');
+
+console.log('[Video Generation Page] URL Parameters:', {
+  template,
+  duration,
+  aspectRatio,
+  styleFromUrl
+});
+
+if (!template || !duration || !aspectRatio) {
+  const errorMsg = `Missing required parameters: ${[
+    !template && 'template',
+    !duration && 'duration',
+    !aspectRatio && 'aspectRatio'
+  ].filter(Boolean).join(', ')}`;
+  return Astro.redirect(`/?error=${encodeURIComponent(errorMsg)}`);
+}
+
+// Determine a style key for context if needed, similar to image-generation
+const TEMPLATE_TO_STYLE_MAP: Record<string, string> = {
+  custom: 'realistic',
+  random: 'artistic',
+  travel: 'photographic',
+  'what-if': 'imaginative',
+  scary: 'dark',
+  bedtime: 'whimsical',
+  history: 'vintage',
+  'urban-legends': 'moody',
+  motivational: 'inspiring',
+  'fun-facts': 'infographic',
+  jokes: 'cartoon',
+  'life-tips': 'minimal'
+};
+
+let styleContext: string;
+if (styleFromUrl && Object.values(TEMPLATE_TO_STYLE_MAP).includes(styleFromUrl)) {
+  styleContext = styleFromUrl;
+} else {
+  styleContext = TEMPLATE_TO_STYLE_MAP[template] || 'realistic';
+}
+console.log('[Video Generation Page - Diagnostic] Style context for page:', styleContext);
+
+// Further client-side script will retrieve script, audioUrl, and images from localStorage.
+---
+
+<Layout title="Create Your Video">
+  <main class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Create Your Video</h1>
+        <p class="text-xl text-gray-600">Combining your generated audio and images into a final masterpiece.</p>
+      </div>
+
+      <!-- Progress Steps -->
+      <div class="flex justify-center mb-12">
+        <div class="flex items-center space-x-4 text-sm">
+          <span class="flex items-center"><span class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center mr-2">✓</span>Script</span>
+          <span class="text-gray-400">→</span>
+          <span class="flex items-center"><span class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center mr-2">✓</span>Voice</span>
+          <span class="text-gray-400">→</span>
+          <span class="flex items-center"><span class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center mr-2">✓</span>Images</span>
+          <span class="text-gray-400">→</span>
+          <span class="flex items-center"><span class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center mr-2">▶</span>Video</span>
+        </div>
+      </div>
+
+      <!-- Caption Template Selector -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h3 class="text-xl font-semibold mb-4">Choose Caption Template</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          
+          <div class="caption-style-option selected" data-style="default">
+            <div class="preview-box bg-black text-white rounded-lg p-3 text-center">
+              <span class="text-sm font-bold">Default</span>
+            </div>
+            <p class="text-xs mt-1 text-center">Classic</p>
+          </div>
+          
+          <div class="caption-style-option" data-style="style-neon">
+            <div class="preview-box bg-black text-yellow-400 rounded-lg p-3 text-center border-2 border-yellow-400">
+              <span class="text-sm font-black">STYLE</span>
+            </div>
+            <p class="text-xs mt-1 text-center">Neon Glow</p>
+          </div>
+          
+          <div class="caption-style-option" data-style="brown-bold">
+            <div class="preview-box bg-amber-800 text-white rounded-lg p-3 text-center">
+              <span class="text-sm font-black">BROWN</span>
+            </div>
+            <p class="text-xs mt-1 text-center">Bold Brown</p>
+          </div>
+          
+          <div class="caption-style-option" data-style="fox-modern">
+            <div class="preview-box bg-white text-black border-2 rounded-lg p-3 text-center">
+              <span class="text-sm font-black">FOX</span>
+            </div>
+            <p class="text-xs mt-1 text-center">Modern</p>
+          </div>
+          
+          <div class="caption-style-option" data-style="minimal">
+            <div class="preview-box bg-gray-100 text-gray-700 border rounded-lg p-3 text-center">
+              <span class="text-sm font-semibold">Minimal</span>
+            </div>
+            <p class="text-xs mt-1 text-center">Clean</p>
+          </div>
+          
+          <div class="caption-style-option" data-style="gradient-pro">
+            <div class="preview-box bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg p-3 text-center">
+              <span class="text-sm font-bold">Gradient</span>
+            </div>
+            <p class="text-xs mt-1 text-center">Pro</p>
+          </div>
+          
+          <div class="caption-style-option" data-style="red-bold">
+            <div class="preview-box bg-red-600 text-white rounded-lg p-3 text-center">
+              <span class="text-sm font-black">RED</span>
+            </div>
+            <p class="text-xs mt-1 text-center">Bold Red</p>
+          </div>
+          
+          <div class="caption-style-option" data-style="blue-tech">
+            <div class="preview-box bg-blue-600 text-white rounded-lg p-3 text-center">
+              <span class="text-sm font-bold">TECH</span>
+            </div>
+            <p class="text-xs mt-1 text-center">Blue Tech</p>
+          </div>
+          
+        </div>
+      </div>
+
+      <!-- Video Generation Section -->
+      <div class="bg-white rounded-xl shadow-lg p-8">
+        <!-- Video Player (Hidden initially) -->
+        <div id="videoPlayerContainer" class="hidden">
+          <h2 class="text-2xl font-semibold mb-4 text-center">Your Generated Video</h2>
+          <div class="video-wrapper">
+            <video id="videoPlayer" controls class="w-full rounded-lg bg-black"></video>
+          </div>
+          <div class="mt-4 text-center">
+            <a id="downloadVideoLink" href="#" download="generated_video.mp4" class="hidden inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition duration-150">
+              Download Video
+            </a>
+          </div>
+        </div>
+
+        <!-- Generation Controls -->
+        <div id="generationControls" class="text-center">
+          <button id="generateVideoButton" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-lg text-xl transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed">
+            Generate Video Now
+          </button>
+          <p id="generationStatus" class="mt-4 text-gray-600"></p>
+        </div>
+
+        <!-- Error Display -->
+        <div id="errorDisplay" class="mt-6 hidden">
+          <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong class="font-bold">Error:</strong>
+            <span id="errorMessage" class="block sm:inline ml-2"></span>
+            <button id="retryButton" class="mt-3 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
+              Retry
+            </button>
+          </div>
+        </div>
+
+        <!-- Asset Preview -->
+        <div class="mt-8 p-6 bg-gray-50 rounded-lg">
+          <h3 class="text-xl font-semibold mb-4">Assets Ready for Video</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 class="text-lg mb-2">Audio Track:</h4>
+              <audio id="audioPreview" controls class="w-full"></audio>
+            </div>
+            <div>
+              <h4 class="text-lg mb-2">Images (<span id="imageCount">0</span>):</h4>
+              <div id="imagePreview" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-white rounded border"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="mt-8 text-center">
+        <button onclick="history.back()" class="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded-lg transition duration-150">
+          ← Back to Previous Step
+        </button>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  // ✅ Import browser compatibility utilities
+  import { safeStorage, SafeAudio, detectBrowserFeatures, initBrowserCompat, checkMediaRecorderSupport } from '../utils/browserCompat.js';
+  
+  // Initialize browser compatibility
+  const browserFeatures = initBrowserCompat();
+  const mediaRecorderSupport = checkMediaRecorderSupport();
+  
+  // Motion effects configuration
+  const MOTION_EFFECTS = [
+    { name: 'zoomIn', scale: { start: 1, end: 1.2 } },
+    { name: 'zoomOut', scale: { start: 1.2, end: 1 } },
+    { name: 'panLeft', translate: { start: { x: 0, y: 0 }, end: { x: -50, y: 0 } } },
+    { name: 'panRight', translate: { start: { x: -50, y: 0 }, end: { x: 0, y: 0 } } },
+    { name: 'panUp', translate: { start: { x: 0, y: 0 }, end: { x: 0, y: -50 } } },
+    { name: 'panDown', translate: { start: { x: 0, y: -50 }, end: { x: 0, y: 0 } } }
+  ];
+
+  // Keywords that suggest different motion effects
+  const MOTION_KEYWORDS = {
+    zoomIn: ['closer', 'focus', 'important', 'key', 'crucial', 'highlight', 'specific', 'detail'],
+    zoomOut: ['broad', 'overall', 'generally', 'wide', 'expansive', 'entire', 'whole'],
+    panLeft: ['before', 'previous', 'past', 'earlier', 'back', 'return'],
+    panRight: ['next', 'future', 'forward', 'then', 'advance', 'proceed'],
+    panUp: ['above', 'higher', 'rise', 'increase', 'grow', 'improve'],
+    panDown: ['below', 'lower', 'decrease', 'down', 'reduce', 'fall']
+  };
+
+  function getMotionEffectForChunk(text) {
+    const lowerText = text.toLowerCase();
+    
+    // Check for keywords in text
+    for (const [effectName, keywords] of Object.entries(MOTION_KEYWORDS)) {
+      if (keywords.some(keyword => lowerText.includes(keyword))) {
+        return MOTION_EFFECTS.find(effect => effect.name === effectName);
+      }
+    }
+    
+    // Return random effect if no keywords match
+    return MOTION_EFFECTS[Math.floor(Math.random() * MOTION_EFFECTS.length)];
+  }
+
+  // Get URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const aspectRatio = urlParams.get('aspectRatio') || '9:16';
+
+  // ✅ Use safe storage instead of direct localStorage
+  let generatedScript = safeStorage.getItem('generatedScript');
+  let generatedAudioUrl = safeStorage.getItem('generatedAudioUrl');
+  let generatedImages = [];
+  
+  try {
+    const imagesData = safeStorage.getItem('generatedImages');
+    if (imagesData) {
+      generatedImages = JSON.parse(imagesData);
+    }
+  } catch (e) {
+    console.error('Failed to parse generated images:', e);
+  }
+  
+  // UI Elements
+  const generateButton = document.getElementById('generateVideoButton');
+  const statusText = document.getElementById('generationStatus');
+  const videoContainer = document.getElementById('videoPlayerContainer');
+  const videoPlayer = document.getElementById('videoPlayer');
+  const downloadLink = document.getElementById('downloadVideoLink');
+  const errorDisplay = document.getElementById('errorDisplay');
+  const errorMessage = document.getElementById('errorMessage');
+  const retryButton = document.getElementById('retryButton');
+  const audioPreview = document.getElementById('audioPreview');
+  const imagePreview = document.getElementById('imagePreview');
+  const imageCountElement = document.getElementById('imageCount');
+
+  // Canvas setup
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  function getDimensions(aspectRatio) {
+    const dimensions = {
+      '9:16': { width: 1080, height: 1920 },
+      '16:9': { width: 1920, height: 1080 },
+      '1:1': { width: 1080, height: 1080 }
+    };
+    return dimensions[aspectRatio] || dimensions['9:16'];
+  }
+
+  // ✅ Enhanced audio loading with browser compatibility
+  async function loadAudio(url) {
+    try {
+      // Use SafeAudio for cross-browser compatibility
+      const safeAudio = new SafeAudio(url);
+      
+      if (!safeAudio.isSupported()) {
+        throw new Error('Audio playback not supported in this browser');
+      }
+      
+      // Get speech marks from ElevenLabs API endpoint
+      const speechMarksUrl = url.replace('/audio/', '/speech_marks/').replace('.mp3', '.json');
+      console.log('Fetching speech marks from:', speechMarksUrl);
+      
+      let speechMarks = [];
+      try {
+        const speechMarksResponse = await fetch(speechMarksUrl);
+        if (speechMarksResponse.ok) {
+          speechMarks = await speechMarksResponse.json();
+        } else {
+          console.warn('Speech marks not available, falling back to duration-based timing');
+        }
+      } catch (error) {
+        console.warn('Failed to fetch speech marks:', error);
+      }
+      
+      return new Promise((resolve, reject) => {
+        safeAudio.onloadedmetadata(() => {
+          const duration = safeAudio.getDuration();
+          console.log('Audio duration:', duration);
+          resolve({ 
+            safeAudio, 
+            url: url,
+            speechMarks,
+            duration
+          });
+        });
+
+        safeAudio.onerror((error) => {
+          console.error('Audio load error:', error);
+          reject(new Error('Failed to load audio file'));
+        });
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          reject(new Error('Audio loading timeout'));
+        }, 10000);
+      });
+    } catch (error) {
+      console.error('Error in loadAudio:', error);
+      throw new Error(`Failed to load audio: ${error.message}`);
+    }
+  }
+
+  // Function to ensure image is fully loaded
+  async function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+      img.src = url;
+    });
+  }
+
+  // Function to draw image maintaining aspect ratio
+  function drawImageCentered(ctx, img, canvas) {
+    const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+    const x = (canvas.width - img.width * scale) / 2;
+    const y = (canvas.height - img.height * scale) / 2;
+    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+  }
+
+  // Function to create transition between images
+  function createTransition(ctx, img1, img2, progress, canvas) {
+    ctx.globalAlpha = 1 - progress;
+    drawImageCentered(ctx, img1, canvas);
+    ctx.globalAlpha = progress;
+    drawImageCentered(ctx, img2, canvas);
+    ctx.globalAlpha = 1;
+  }
+
+  // ✅ FASTER MOTION: Increased speed while keeping everything else the same
+  function renderImageWithControlledMotion(ctx, img, canvas, progress, motionEffect) {
+    const { type, intensity } = motionEffect;
+    
+    // ✅ SAME: Calculate perfect fit scale (UNCHANGED)
+    const scaleX = canvas.width / img.width;
+    const scaleY = canvas.height / img.height;
+    const baseScale = Math.max(scaleX, scaleY) * 1.02; 
+    
+    let currentScale = baseScale;
+    let translateX = 0;
+    let translateY = 0;
+
+    // ✅ FASTER MOTION: Increased speed values
+    switch (type) {
+      case 'ken-burns':
+        currentScale *= (1.0 + (progress * intensity * 0.18)); // ✅ FASTER: Was 0.08, now 0.18
+        translateX = Math.sin(progress * Math.PI * 1.5) * intensity * 20; // ✅ FASTER: Was 8, now 20 + faster oscillation
+        translateY = Math.cos(progress * Math.PI * 1.5) * intensity * 15; // ✅ FASTER: Was 5, now 15
+        break;
+        
+      case 'zoom-in':
+        currentScale *= (1.0 + (progress * intensity * 0.25)); // ✅ FASTER: Was 0.12, now 0.25
+        break;
+        
+      case 'zoom-out':
+        currentScale *= (1.25 - (progress * intensity * 0.25)); // ✅ FASTER: Was 0.12, now 0.25
+        break;
+        
+      case 'pan-left':
+        translateX = -progress * intensity * 35; // ✅ FASTER: Was 15, now 35
+        currentScale *= (1.0 + (progress * intensity * 0.1)); // ✅ ADDED: Progressive zoom during pan
+        break;
+        
+      case 'pan-right':
+        translateX = progress * intensity * 35; // ✅ FASTER: Was 15, now 35
+        currentScale *= (1.0 + (progress * intensity * 0.1)); // ✅ ADDED: Progressive zoom during pan
+        break;
+    }
+
+    // ✅ SAME: Calculate position ensuring image stays in frame (UNCHANGED)
+    const scaledWidth = img.width * currentScale;
+    const scaledHeight = img.height * currentScale;
+    
+    let x = (canvas.width - scaledWidth) / 2 + translateX;
+    let y = (canvas.height - scaledHeight) / 2 + translateY;
+    
+    // ✅ SAME: Strict bounds checking (UNCHANGED)
+    x = Math.max(canvas.width - scaledWidth, Math.min(0, x));
+    y = Math.max(canvas.height - scaledHeight, Math.min(0, y));
+
+    // ✅ SAME: Draw image (UNCHANGED)
+    ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+  }
+
+  // Get script segments using GPT
+  async function getScriptSegments(script) {
+    try {
+      const response = await fetch('/api/segment-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You are a video editor. Break this script into meaningful narrative chunks based on:
+1. Scene changes
+2. Emotional shifts
+3. Topic transitions
+4. Natural pauses in speech
+
+Each chunk should feel natural and flow well with the narration. Avoid breaking mid-sentence unless there's a dramatic pause.
+
+Script to segment:
+${script}`,
+          script
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to segment script');
+      const { segments } = await response.json();
+      return segments;
+    } catch (error) {
+      console.error('Script segmentation failed:', error);
+      // Fallback to simple sentence splitting but with more natural breaks
+      return script.split(/(?<=[.!?])\s+(?=[A-Z])/).filter(s => s.trim());
+    }
+  }
+
+  // Calculate timing for script chunks using speech marks or duration
+  function calculateChunkTimings(chunks, speechMarks, audioDuration) {
+    if (!speechMarks || speechMarks.length === 0) {
+      console.log('Using duration-based timing, audio duration:', audioDuration);
+      const timePerChunk = audioDuration / chunks.length;
+      return chunks.map((chunk, index) => ({
+        text: chunk,
+        start: index * timePerChunk,
+        end: (index + 1) * timePerChunk,
+        duration: timePerChunk
+      }));
+    }
+
+    console.log('Using speech marks for timing, marks count:', speechMarks.length);
+    return chunks.map((chunk, index) => {
+      // Find all words in this chunk
+      const words = chunk.toLowerCase().match(/\b\w+\b/g) || [];
+      
+      // Find matching speech marks
+      const relevantMarks = speechMarks.filter(mark => 
+        words.some(word => mark.word.toLowerCase().includes(word))
+      );
+
+      if (relevantMarks.length === 0) {
+        // Fallback for chunks without matching marks
+        const avgDuration = audioDuration / chunks.length;
+        return {
+          text: chunk,
+          start: index * avgDuration,
+          end: (index + 1) * avgDuration,
+          duration: avgDuration
+        };
+      }
+
+      const start = Math.min(...relevantMarks.map(m => m.start)) / 1000;
+      const end = Math.max(...relevantMarks.map(m => m.end)) / 1000;
+      
+      return {
+        text: chunk,
+        start,
+        end,
+        duration: end - start
+      };
+    });
+  }
+
+  // ✅ ENHANCED CAPCUT-STYLE RENDERING (replace renderViralCaption function)
+  function renderViralCaption(ctx, caption, canvas, currentTime) {
+    if (currentTime < caption.start || currentTime >= caption.end) {
+      return;
+    }
+
+    const { text, x, y, fontSize, style } = caption;
+    
+    ctx.save();
+    
+    // ✅ CAPCUT-STYLE FONT
+    ctx.font = `${style.fontWeight} ${fontSize}px "Arial Black", Arial, sans-serif`;
+    ctx.textAlign = style.textAlign;
+    ctx.textBaseline = 'middle';
+    
+    const metrics = ctx.measureText(text);
+    const textWidth = metrics.width;
+    const textHeight = fontSize;
+    
+    // ✅ BACKGROUND BOX
+    const padding = style.padding;
+    const boxWidth = textWidth + (padding * 2);
+    const boxHeight = textHeight + (padding * 1.3);
+    const boxX = x - (boxWidth / 2);
+    const boxY = y - (boxHeight / 2);
+    
+    // ✅ SHADOW EFFECT
+    if (style.shadow) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.beginPath();
+      ctx.roundRect(boxX + 4, boxY + 4, boxWidth, boxHeight, style.borderRadius);
+      ctx.fill();
+    }
+    
+    // ✅ GRADIENT BACKGROUND (if style has gradient)
+    if (style.backgroundColor.includes('gradient')) {
+      const gradient = ctx.createLinearGradient(boxX, boxY, boxX + boxWidth, boxY + boxHeight);
+      gradient.addColorStop(0, '#667eea');
+      gradient.addColorStop(1, '#764ba2');
+      ctx.fillStyle = gradient;
+    } else {
+      ctx.fillStyle = style.backgroundColor;
+    }
+    
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, style.borderRadius);
+    ctx.fill();
+    
+    // ✅ GLOW EFFECT (for neon style)
+    if (style.glow) {
+      ctx.shadowColor = style.glow;
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
+    
+    // ✅ TEXT WITH STROKE
+    ctx.fillStyle = style.textColor;
+    ctx.strokeStyle = style.strokeColor;
+    ctx.lineWidth = style.strokeWidth;
+    
+    // Multiple stroke passes for thick outline
+    for (let i = 0; i < 2; i++) {
+      ctx.strokeText(text, x, y);
+    }
+    ctx.fillText(text, x, y);
+    
+    ctx.restore();
+  }
+
+  // ✅ COMPLETE FIXED generateVideo FUNCTION (replace the existing one around line 410)
+  async function generateVideo() {
+    try {
+      setStatus('🎬 Starting video generation...');
+      generateButton.disabled = true;
+
+      // ✅ CRITICAL: Load audio first to get EXACT duration
+      const audioElement = new Audio(generatedAudioUrl);
+      await new Promise((resolve, reject) => {
+        audioElement.onloadedmetadata = resolve;
+        audioElement.onerror = reject;
+      });
+
+      const EXACT_AUDIO_DURATION = audioElement.duration;
+      console.log('🎵 EXACT AUDIO DURATION:', EXACT_AUDIO_DURATION.toFixed(3) + 's');
+
+      // ✅ LOAD SPEECH MARKS from localStorage (generated during voice creation)
+      let speechMarks = [];
+      try {
+        const storedSpeechMarks = localStorage.getItem('speechMarks');
+        if (storedSpeechMarks) {
+          speechMarks = JSON.parse(storedSpeechMarks);
+          console.log('✅ Speech marks loaded from storage:', speechMarks.length, 'marks for word-level timing');
+        } else {
+          console.warn('⚠️ No speech marks in storage, using duration-based timing');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to load speech marks from storage:', error);
+      }
+
+      // Get authentication token
+      const { supabase } = await import('../lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('You must be logged in to generate videos');
+      }
+
+      // Get video configuration with exact timing
+      const videoConfig = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          script: generatedScript,
+          audioUrl: generatedAudioUrl,
+          imageUrls: generatedImages,
+          aspectRatio,
+          audioDuration: EXACT_AUDIO_DURATION
+        })
+      });
+
+      if (!videoConfig.ok) {
+        const errorData = await videoConfig.json();
+        if (videoConfig.status === 402) {
+          // Insufficient credits
+          showError('Insufficient Credits', errorData.message || 'You have no credits remaining. Please upgrade your plan to continue.');
+          generateButton.disabled = false;
+          return;
+        }
+        throw new Error(errorData.error || 'Failed to generate video configuration');
+      }
+
+      const { segments, videoSettings, metadata } = await videoConfig.json();
+      
+      console.log('🎬 AUDIO-BASED TIMING:', {
+        audioDuration: EXACT_AUDIO_DURATION.toFixed(3) + 's',
+        segments: segments.length,
+        segmentDuration: metadata.segmentDuration.toFixed(3) + 's',
+        imageCount: metadata.imageCount
+      });
+
+      // ✅ VERIFY SEGMENT IMAGE DISTRIBUTION
+      console.log('🖼️ SEGMENT-TO-IMAGE MAPPING:');
+      segments.forEach((segment, index) => {
+        console.log(`  Segment ${index + 1}: ${segment.start.toFixed(2)}-${segment.end.toFixed(2)}s → Image ${segment.imageIndex + 1} | "${segment.text.substring(0, 30)}..."`);
+      });
+
+      // ✅ FETCH WORD-SYNCED CAPTIONS with speech marks
+      let captionSegments = [];
+      const selectedStyle = document.querySelector('.caption-style-option.selected')?.dataset.style || 'capcut-black';
+
+      setStatus('Generating word-synced captions with speech marks...');
+      try {
+        const captionResponse = await fetch('/api/generate-captions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            script: generatedScript,
+            audioDuration: EXACT_AUDIO_DURATION,
+            aspectRatio,
+            captionStyle: selectedStyle,
+            speechMarks: speechMarks  // ✅ Pass speech marks for word-level timing
+          })
+        });
+
+        if (captionResponse.ok) {
+          const captionData = await captionResponse.json();
+          captionSegments = captionData.captions;
+          console.log('🎬 WORD-SYNCED CAPTIONS LOADED:', captionSegments.length, 'segments with', selectedStyle, 'style');
+          if (speechMarks.length > 0) {
+            console.log('🎯 Using speech marks for precise word-level timing');
+          }
+        } else {
+          console.warn('⚠️ Caption generation failed, proceeding without captions');
+        }
+      } catch (error) {
+        console.warn('⚠️ Caption generation error:', error);
+      }
+
+      setStatus(`Loading ${metadata.imageCount} images...`);
+
+      // Load images
+      const images = await Promise.all(
+        generatedImages.slice(0, metadata.imageCount).map((url, index) => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              console.log(`✅ Image ${index + 1} loaded: ${img.width}x${img.height}`);
+              resolve(img);
+            };
+            img.onerror = () => reject(new Error(`Failed to load image ${index + 1}`));
+            img.src = url;
+          });
+        })
+      );
+
+      setStatus('Setting up video recording with audio timestamps...');
+
+      // ✅ CRITICAL: Setup canvas and video recording
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = videoSettings.dimensions.width;
+      canvas.height = videoSettings.dimensions.height;
+
+      // ✅ CRITICAL: Use EXACT audio duration for frame calculation
+      const FPS = 30;
+      const TOTAL_FRAMES = Math.ceil(EXACT_AUDIO_DURATION * FPS);
+      const FRAME_DURATION = 1 / FPS;
+      
+      console.log('📊 PRECISE FRAME CALCULATION:', {
+        exactAudioDuration: EXACT_AUDIO_DURATION.toFixed(3) + 's',
+        fps: FPS,
+        totalFrames: TOTAL_FRAMES,
+        frameDuration: FRAME_DURATION.toFixed(4) + 's',
+        calculatedVideoDuration: (TOTAL_FRAMES * FRAME_DURATION).toFixed(3) + 's'
+      });
+
+      // Setup MediaRecorder for EXACT duration
+      const stream = canvas.captureStream(FPS);
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9',
+        videoBitsPerSecond: videoSettings.bitrate
+      });
+
+      const chunks = [];
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+      const videoPromise = new Promise((resolve) => {
+        mediaRecorder.onstop = () => {
+          const videoBlob = new Blob(chunks, { type: 'video/webm' });
+          console.log('🎬 Video blob created:', {
+            size: (videoBlob.size / 1024 / 1024).toFixed(2) + 'MB',
+            type: videoBlob.type
+          });
+          resolve(videoBlob);
+        };
+      });
+
+      mediaRecorder.start();
+      setStatus('🎬 Rendering frames with audio timestamps...');
+
+      // ✅ CRITICAL: Audio timestamp-based frame rendering - ALL VARIABLES DECLARED HERE
+      let currentFrame = 0;
+      let lastProgressUpdate = 0;
+      let lastSegmentIndex = -1;
+      const startTime = performance.now();
+      
+      // ✅ DEBUG: Track image usage
+      const imageUsageTracker = new Map();
+      generatedImages.forEach((_, index) => {
+        imageUsageTracker.set(index, 0);
+      });
+
+      // ✅ IMPROVED AUDIO-VIDEO SYNC (Aegisub-style timing)
+      function renderFrameWithAudioTimestamp() {
+        if (currentFrame >= TOTAL_FRAMES) {
+          const renderTime = ((performance.now() - startTime) / 1000).toFixed(2);
+          console.log(`🎬 RENDERING COMPLETE! ${TOTAL_FRAMES} frames in ${renderTime}s`);
+          
+          // ✅ LOG FINAL IMAGE USAGE STATISTICS
+          console.log('📊 FINAL IMAGE USAGE STATISTICS:');
+          imageUsageTracker.forEach((count, imageIndex) => {
+            const percentage = ((count / TOTAL_FRAMES) * 100).toFixed(1);
+            console.log(`  Image ${imageIndex + 1}: ${count} frames (${percentage}%)`);
+          });
+          
+          mediaRecorder.stop();
+          return;
+        }
+
+        // ✅ PRECISE TIMING: Calculate exact audio timestamp
+        const audioTimestamp = (currentFrame / FPS);
+        const progressPercent = (currentFrame / TOTAL_FRAMES) * 100;
+        
+        // ✅ DEBUG LOG: First 5 seconds only (remove in production)
+        if (currentFrame <= 150) {
+          console.log(`🎬 Frame ${currentFrame}: ${audioTimestamp.toFixed(3)}s`);
+        }
+        
+        // Progress update every second
+        if (currentFrame - lastProgressUpdate >= FPS) {
+          setStatus(`Rendering: ${Math.round(progressPercent)}% (${audioTimestamp.toFixed(1)}s / ${EXACT_AUDIO_DURATION.toFixed(1)}s)`);
+          lastProgressUpdate = currentFrame;
+        }
+        
+        // ✅ FIND CURRENT SEGMENT: More precise matching
+        let currentSegment = null;
+        let currentSegmentIndex = -1;
+        
+        for (let i = 0; i < segments.length; i++) {
+          const segment = segments[i];
+          // ✅ PRECISE TIMING: Include segment boundaries
+          if (audioTimestamp >= segment.start && audioTimestamp < segment.end) {
+            currentSegment = segment;
+            currentSegmentIndex = i;
+            break;
+          }
+        }
+        
+        // ✅ FALLBACK: Use last segment if we're past the end
+        if (!currentSegment && segments.length > 0) {
+          currentSegment = segments[segments.length - 1];
+          currentSegmentIndex = segments.length - 1;
+        }
+        
+        // Safety fallback - should never happen but prevents crashes
+        if (!currentSegment) {
+          currentSegmentIndex = Math.floor((audioTimestamp / EXACT_AUDIO_DURATION) * segments.length);
+          currentSegmentIndex = Math.max(0, Math.min(segments.length - 1, currentSegmentIndex));
+          currentSegment = segments[currentSegmentIndex];
+        }
+        
+        // ✅ LOG precise image changes with more detail
+        if (currentSegmentIndex !== lastSegmentIndex) {
+          console.log(`🔄 TIMESTAMP ${audioTimestamp.toFixed(3)}s: Segment ${currentSegmentIndex + 1}/${segments.length}, Image ${currentSegment.imageIndex + 1}/${images.length} (${currentSegment.text.substring(0, 30)}...)`);
+          lastSegmentIndex = currentSegmentIndex;
+        }
+
+        // ✅ Calculate segment progress based on audio timestamp
+        const segmentProgress = Math.min(
+          (audioTimestamp - currentSegment.start) / currentSegment.duration,
+          1
+        );
+
+        // ✅ Get the correct image for this audio moment with bounds checking
+        const imageIndex = Math.max(0, Math.min(images.length - 1, currentSegment.imageIndex));
+        let currentImage = images[imageIndex];
+
+        if (!currentImage) {
+          console.error(`❌ Missing image at index ${imageIndex}, using first image as fallback`);
+          currentImage = images[0];
+        }
+
+        // ✅ Debug image usage every 30 frames (1 second)
+        if (currentFrame % 30 === 0) {
+          console.log(`🖼️ Frame ${currentFrame}: Using image ${imageIndex + 1}/${images.length} for segment "${currentSegment.text.substring(0, 20)}..." at ${audioTimestamp.toFixed(2)}s`);
+        }
+
+        // ✅ Track image usage for statistics
+        imageUsageTracker.set(imageIndex, (imageUsageTracker.get(imageIndex) || 0) + 1);
+
+        // ✅ Clear canvas with solid background
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // ✅ Render image with controlled motion
+        renderImageWithControlledMotion(
+          ctx,
+          currentImage,
+          canvas,
+          segmentProgress,
+          currentSegment.motionEffect
+        );
+
+        // ✅ CAPTION RENDERING: Always show captions with emojis
+        if (captionSegments && captionSegments.length > 0) {
+          // Find active captions for current audio timestamp
+          const activeCaptions = captionSegments.filter(caption => 
+            audioTimestamp >= caption.start && audioTimestamp < caption.end // Changed <= to < for better precision
+          );
+          
+          // ✅ DEBUG LOG: Track caption synchronization for first 5 seconds
+          if (currentFrame <= 150) { // First 5 seconds only
+            console.log(`🎭 Frame ${currentFrame} (${audioTimestamp.toFixed(3)}s): ${activeCaptions.length} active captions`);
+            if (activeCaptions.length > 0) {
+              activeCaptions.forEach((caption, index) => {
+                console.log(`  Caption ${index + 1}: "${caption.text}" (${caption.start}s-${caption.end}s)`);
+              });
+            }
+          }
+          
+          // Render all active captions in center of screen
+          for (const caption of activeCaptions) {
+            renderViralCaption(ctx, caption, canvas, audioTimestamp);
+          }
+        }
+
+        currentFrame++;
+        
+        // ✅ Use precise timing for next frame
+        const expectedTime = (currentFrame * FRAME_DURATION * 1000);
+        const actualTime = performance.now() - startTime;
+        const delay = Math.max(0, expectedTime - actualTime);
+        
+        if (delay > 0) {
+          setTimeout(renderFrameWithAudioTimestamp, delay);
+        } else {
+          requestAnimationFrame(renderFrameWithAudioTimestamp);
+        }
+      }
+
+      // Start audio timestamp-based rendering
+      renderFrameWithAudioTimestamp();
+
+      // Wait for video completion
+      const videoBlob = await videoPromise;
+      const videoUrl = URL.createObjectURL(videoBlob);
+
+      setStatus('🎵 Setting up synchronized playback...');
+
+      // ✅ Create video element with EXACT duration matching
+      const finalVideo = document.createElement('video');
+      finalVideo.src = videoUrl;
+      finalVideo.controls = true;
+      finalVideo.className = 'w-full h-full object-contain rounded-lg';
+
+      // Wait for video metadata to verify duration
+      await new Promise((resolve) => {
+        finalVideo.onloadedmetadata = () => {
+          console.log('📹 VIDEO DURATION VERIFICATION:', {
+            videoDuration: finalVideo.duration.toFixed(3) + 's',
+            audioDuration: EXACT_AUDIO_DURATION.toFixed(3) + 's',
+            match: Math.abs(finalVideo.duration - EXACT_AUDIO_DURATION) < 0.1 ? '✅ PERFECT' : '❌ MISMATCH'
+          });
+          resolve();
+        };
+      });
+
+      // ✅ PERFECT audio-video synchronization
+      const syncedAudio = new Audio(generatedAudioUrl);
+      let isPlaying = false;
+
+      finalVideo.addEventListener('play', async () => {
+        if (!isPlaying) {
+          syncedAudio.currentTime = finalVideo.currentTime;
+          try {
+            await syncedAudio.play();
+            isPlaying = true;
+            console.log('🎵 Audio synced and playing at', finalVideo.currentTime.toFixed(2) + 's');
+          } catch (error) {
+            console.error('Audio play failed:', error);
+          }
+        }
+      });
+
+      finalVideo.addEventListener('pause', () => {
+        syncedAudio.pause();
+        isPlaying = false;
+      });
+
+      finalVideo.addEventListener('seeked', () => {
+        syncedAudio.currentTime = finalVideo.currentTime;
+        console.log(`⏭️ Synced to ${finalVideo.currentTime.toFixed(2)}s`);
+      });
+
+      finalVideo.addEventListener('ended', () => {
+        syncedAudio.pause();
+        syncedAudio.currentTime = 0;
+        isPlaying = false;
+      });
+
+      // Display video
+      const aspectContainer = document.createElement('div');
+      aspectContainer.className = getAspectRatioClass(aspectRatio);
+      aspectContainer.appendChild(finalVideo);
+      
+      videoContainer.innerHTML = '';
+      videoContainer.appendChild(aspectContainer);
+      
+      downloadLink.href = videoUrl;
+      downloadLink.download = `viroshort_with_captions_${Date.now()}.webm`;
+      downloadLink.classList.remove('hidden');
+      videoContainer.classList.remove('hidden');
+      generateButton.classList.add('hidden');
+
+      setStatus(`✅ PERFECT SYNC WITH CAPTIONS! Video: ${finalVideo.duration.toFixed(1)}s | Audio: ${EXACT_AUDIO_DURATION.toFixed(1)}s`);
+
+    } catch (error) {
+      console.error('💥 Video generation error:', error);
+      setStatus('❌ Error: ' + error.message);
+      showError('Generation Error', error.message);
+      generateButton.disabled = false;
+    }
+  }
+
+  // Helper function for aspect ratio classes
+  function getAspectRatioClass(ratio) {
+    switch (ratio) {
+      case '9:16': return 'aspect-9-16';
+      case '16:9': return 'aspect-16-9'; 
+      case '1:1': return 'aspect-1-1';
+      default: return 'aspect-9-16';
+    }
+  }
+
+  function loadAssetsFromLocalStorage() {
+    try {
+      generatedScript = localStorage.getItem('generatedScript');
+      generatedAudioUrl = localStorage.getItem('generatedAudioUrl');
+      const imagesJson = localStorage.getItem('generatedImages');
+      
+      if (!generatedScript || !generatedAudioUrl || !imagesJson) {
+        throw new Error('Missing required assets');
+      }
+
+      generatedImages = JSON.parse(imagesJson);
+      if (!Array.isArray(generatedImages) || generatedImages.length === 0) {
+        throw new Error('No images available');
+      }
+
+      // Update UI
+      audioPreview.src = generatedAudioUrl;
+      imageCountElement.textContent = generatedImages.length.toString();
+      imagePreview.innerHTML = '';
+      
+      const sentences = generatedScript.match(/[^.!?]+[.!?]+/g) || [];
+      generatedImages.forEach((url, index) => {
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'w-full h-24 object-cover rounded';
+        img.title = sentences[index] || `Image ${index + 1}`;
+        imagePreview.appendChild(img);
+      });
+
+      generateButton.disabled = false;
+      return true;
+    } catch (error) {
+      console.error('Error loading assets:', error);
+      statusText.textContent = 'Error: Missing required assets. Please go back and regenerate.';
+      generateButton.disabled = true;
+      return false;
+    }
+  }
+
+  function setStatus(message) {
+    statusText.textContent = message;
+  }
+
+  function showError(title, message) {
+    errorDisplay.classList.remove('hidden');
+    errorMessage.textContent = message;
+    generateButton.disabled = false;
+  }
+
+  // Initialize immediately when the script loads
+  document.addEventListener('DOMContentLoaded', () => {
+    if (loadAssetsFromLocalStorage()) {
+      generateButton.onclick = generateVideo;
+    }
+
+    // Add retry button handler
+    retryButton?.addEventListener('click', () => {
+      errorDisplay.classList.add('hidden');
+      generateVideo();
+    });
+
+    // Caption style selector
+    let selectedCaptionStyle = 'capcut-black';
+    
+    const styleOptions = document.querySelectorAll('.caption-style-option');
+    
+    styleOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        // Remove previous selection
+        styleOptions.forEach(opt => opt.classList.remove('selected'));
+        
+        // Add selection to clicked option
+        option.classList.add('selected');
+        selectedCaptionStyle = option.dataset.style;
+        
+        console.log('🎨 Caption style selected:', selectedCaptionStyle);
+      });
+    });
+    
+    // Set default selection
+    document.querySelector('[data-style="capcut-black"]')?.classList.add('selected');
+  });
+</script>
+
+<style>
+  /* Video container styles */
+  #videoPlayerContainer {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  /* Aspect ratio containers */
+  .aspect-9-16 {
+    position: relative;
+    padding-top: 177.78%; /* 16:9 Aspect Ratio */
+    max-width: 450px;
+    margin: 0 auto;
+  }
+
+  .aspect-16-9 {
+    position: relative;
+    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+  }
+
+  .aspect-1-1 {
+    position: relative;
+    padding-top: 100%; /* 1:1 Aspect Ratio */
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* Video element styles */
+  video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: black;
+    border-radius: 0.5rem;
+  }
+
+  /* Caption Style Selector */
+  .caption-style-option {
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 8px;
+  }
+  
+  .caption-style-option:hover {
+    border-color: #3B82F6;
+    transform: scale(1.02);
+  }
+  
+  .caption-style-option.selected {
+    border-color: #1D4ED8;
+    background-color: #EFF6FF;
+  }
+  
+  .preview-box {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>

@@ -1,0 +1,185 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { ProgressSteps } from '../components/ProgressSteps';
+
+// Get URL parameters
+const searchParams = Astro.url.searchParams;
+const template = searchParams.get('template');
+const duration = searchParams.get('duration');
+const aspectRatio = searchParams.get('aspectRatio');
+const script = searchParams.get('script');
+
+console.log('Script editing received params:', { template, duration, aspectRatio, script }); // Debug log
+
+// Redirect if missing parameters
+if (!template || !duration || !aspectRatio || !script) {
+  console.log('Missing required parameters, redirecting...'); // Debug log
+  return Astro.redirect('/?error=Missing required parameters');
+}
+
+// Calculate target word count based on duration
+const WORDS_PER_MINUTE = 150;
+const targetWordCount = Math.floor((WORDS_PER_MINUTE / 60) * parseInt(duration));
+---
+
+<Layout title="Edit Script">
+  <main class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-foreground mb-4">Edit Your Script</h1>
+        <p class="text-xl text-muted-foreground">Review and edit your script before proceeding to voice selection.</p>
+      </div>
+
+      <ProgressSteps currentStep={2} client:load />
+
+      <!-- Script Editor -->
+      <div class="mt-8">
+        <div class="bg-card rounded-lg shadow-sm p-6 border border-border">
+          <div class="mb-4">
+            <div class="flex justify-between items-center mb-2">
+              <h2 class="text-lg font-semibold text-card-foreground">Your Script</h2>
+              <span id="wordCount" class="text-sm text-muted-foreground">Target: {targetWordCount} words</span>
+            </div>
+            <textarea
+              id="scriptText"
+              class="w-full h-64 p-4 rounded-lg resize-none font-mono bg-background text-foreground border border-input focus:border-ring focus:ring-2 focus:ring-ring focus:outline-none"
+              placeholder="Edit your script here..."
+            >{script}</textarea>
+          </div>
+
+          <div class="flex justify-between items-center">
+            <button
+              id="backButton"
+              class="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Go Back
+            </button>
+            <div class="flex gap-4">
+              <button
+                id="regenerateButton"
+                class="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
+              >
+                Regenerate
+              </button>
+              <button
+                id="continueButton"
+                class="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Continue to Voice Selection
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Script Guidelines -->
+        <div class="mt-8 bg-accent/10 rounded-lg p-6 border border-border">
+          <h3 class="text-lg font-semibold text-accent-foreground mb-4">Script Guidelines</h3>
+          <ul class="list-disc list-inside space-y-2 text-muted-foreground">
+            <li>Keep sentences clear and concise</li>
+            <li>Aim for {targetWordCount} words to match your {duration}-second duration</li>
+            <li>Avoid special characters or formatting</li>
+            <li>Write naturally as you would speak</li>
+            <li>Focus on engaging, shareable content</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script define:vars={{ targetWordCount, template, duration, aspectRatio }}>
+  // ✅ Import browser compatibility utilities
+  import { safeStorage, detectBrowserFeatures, initBrowserCompat } from '../utils/browserCompat.js';
+  
+  // Initialize browser compatibility
+  const browserFeatures = initBrowserCompat();
+  
+  // Get URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const template = urlParams.get('template');
+  const duration = urlParams.get('duration');
+  const aspectRatio = urlParams.get('aspectRatio');
+
+  // ✅ Use safe storage instead of direct localStorage
+  let script = safeStorage.getItem('generatedScript') || '';
+  
+  console.log('Script editing page loaded with:', {
+    template,
+    duration,
+    aspectRatio,
+    scriptLength: script.length
+  });
+
+  // Populate script textarea
+  document.addEventListener('DOMContentLoaded', () => {
+    const scriptTextarea = document.getElementById('scriptText');
+    if (scriptTextarea && script) {
+      scriptTextarea.value = script;
+      updateCharCount();
+    }
+  });
+
+  function updateCharCount() {
+    const textarea = document.getElementById('scriptText');
+    const charCount = document.getElementById('wordCount');
+    const saveButton = document.getElementById('continueButton');
+    
+    if (textarea && charCount) {
+      const length = textarea.value.trim().split(/\s+/).filter(word => word.length > 0).length;
+      charCount.textContent = `${length}/${targetWordCount} words`;
+      
+      // Enable/disable save button based on content
+      if (saveButton) {
+        saveButton.disabled = length === 0;
+      }
+    }
+  }
+
+  function saveScript() {
+    const textarea = document.getElementById('scriptText');
+    if (textarea) {
+      const newScript = textarea.value.trim();
+      
+      if (newScript.length === 0) {
+        alert('Please enter a script before saving.');
+        return;
+      }
+      
+      // ✅ Use safe storage to save the script
+      safeStorage.setItem('generatedScript', newScript);
+      
+      // Store template data for later use
+      const templateData = {
+        template,
+        duration,
+        aspectRatio,
+        script: newScript,
+        timestamp: Date.now()
+      };
+      safeStorage.setItem('templateData', JSON.stringify(templateData));
+      
+      // Navigate to voice selection
+      const params = new URLSearchParams({
+        template,
+        duration,
+        aspectRatio
+      });
+      
+      window.location.href = `/voice-selection?${params.toString()}`;
+    }
+  }
+
+  // Event listeners
+  document.addEventListener('DOMContentLoaded', () => {
+    const textarea = document.getElementById('scriptText');
+    const saveButton = document.getElementById('continueButton');
+    
+    if (textarea) {
+      textarea.addEventListener('input', updateCharCount);
+    }
+    
+    if (saveButton) {
+      saveButton.addEventListener('click', saveScript);
+    }
+  });
+</script> 
