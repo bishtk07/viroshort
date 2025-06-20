@@ -1,10 +1,23 @@
-# 🎬 ViroShort - AI Video Generator
+# 🎬 ViroShort - AI Video Generator with Credit System
 
-An advanced AI-powered video generation platform that creates viral-style short videos with synchronized captions, motion effects, and precise audio timing.
+An advanced AI-powered video generation platform that creates viral-style short videos with synchronized captions, motion effects, and precise audio timing. Now includes a comprehensive credit-based billing system.
 
 ![ViroShort Demo](https://via.placeholder.com/800x400/1a1a1a/ffffff?text=ViroShort+AI+Video+Generator)
 
-## 🚀 Features
+## 🚀 New Features
+
+### ✅ **Credit-Based Billing System**
+- **Free Trial**: New users get 1 free credit to test the app
+- **Per-video billing**: 1 credit consumed per video generation
+- **Real-time balance**: Credit balance visible in navigation
+- **Automatic blocking**: Users can't generate videos without credits
+- **Paddle integration**: Seamless subscription management
+
+### 🎯 **Subscription Plans**
+- **Free**: 1 credit (new users only)
+- **Starter**: 15 credits/month or 3 credits/week ($19/month or $7.50/week)
+- **Daily**: 30 credits/month or 7 credits/week ($39/month or $15/week)
+- **Hardcore**: 60 credits/month or 15 credits/week ($69/month or $26/week)
 
 ### ✅ **Perfect Audio-Video Synchronization**
 - **Aegisub-style timing**: Precise frame-by-frame synchronization
@@ -24,24 +37,28 @@ An advanced AI-powered video generation platform that creates viral-style short 
 - **Multiple styles**: Neon, Classic, Fire, Ice, Gold, Blue-tech
 - **Emoji integration**: Contextual emoji insertion (35% of captions)
 
-### 🛠️ **Debug & Development Tools**
-- **Frame-by-frame logging**: First 5 seconds detailed timing
-- **Image usage statistics**: Track which images are used when
-- **Visual debug overlay**: Real-time segment and timing information
-- **Console diagnostics**: Comprehensive logging system
+### 🔐 **Security & User Management**
+- **Row Level Security**: Each user can only access their own data
+- **Authentication required**: All video generation requires login
+- **Credit tracking**: Complete audit trail of all credit transactions
+- **Automatic provisioning**: New users automatically receive free credit
 
 ## 📋 Requirements
 
 - Node.js 18+ 
 - Modern web browser with Canvas API support
-- OpenAI API key (for script generation)
-- ElevenLabs API key (for text-to-speech)
+- Supabase account (for database and authentication)
+- Paddle account (for billing)
+- API Keys:
+  - OpenAI API key (for script generation)
+  - Fish Audio API key (for text-to-speech)
+  - Replicate API key (for image generation)
 
 ## 🔧 Installation
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/viroshort.git
+git clone <your-repo-url>
 cd viroshort
 ```
 
@@ -51,45 +68,105 @@ npm install
 ```
 
 3. **Set up environment variables**
-Create a `.env` file in the root directory:
+Create a `.env` file based on `.env.example`:
 ```env
-OPENAI_API_KEY=your_openai_api_key_here
-ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+# Supabase Configuration
+PUBLIC_SUPABASE_URL=your_supabase_project_url
+PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# AI Service APIs
+OPENAI_API_KEY=your_openai_api_key
+REPLICATE_API_TOKEN=your_replicate_token
+FISH_AUDIO_API_KEY=your_fish_audio_api_key
+
+# Paddle Configuration (for billing)
+PADDLE_VENDOR_ID=your_paddle_vendor_id
+PADDLE_API_KEY=your_paddle_api_key
+PADDLE_WEBHOOK_SECRET=your_paddle_webhook_secret
+
+# Environment
+NODE_ENV=development
 ```
 
-4. **Start the development server**
+4. **Set up Supabase database**
+   - Create a new Supabase project
+   - Run the migrations in `supabase/migrations/`
+   - Set up authentication providers (optional: Google, GitHub)
+
+5. **Configure Paddle**
+   - Set up subscription products and pricing
+   - Configure webhook URL: `https://your-domain.com/api/paddle-webhook`
+   - Add environment variables to your hosting platform
+
+6. **Start the development server**
 ```bash
 npm run dev
 ```
 
-5. **Open your browser**
+7. **Open your browser**
 Navigate to `http://localhost:4321`
+
+## 🚀 Deployment
+
+### Cloudflare Pages (Recommended)
+
+1. **Build the project**
+```bash
+npm run build
+```
+
+2. **Deploy to Cloudflare Pages**
+- Connect your GitHub repository to Cloudflare Pages
+- Set build command: `npm run build`
+- Set output directory: `dist`
+- Add all environment variables in Cloudflare dashboard
+
+### Environment Variables for Production
+
+Make sure to set these in your Cloudflare Pages environment:
+- `PUBLIC_SUPABASE_URL`
+- `PUBLIC_SUPABASE_ANON_KEY`
+- `OPENAI_API_KEY`
+- `REPLICATE_API_TOKEN`
+- `FISH_AUDIO_API_KEY`
+- `PADDLE_VENDOR_ID`
+- `PADDLE_API_KEY`
+- `PADDLE_WEBHOOK_SECRET`
+- `NODE_ENV=production`
 
 ## 🎮 Usage
 
-1. **Enter your topic**: Type what you want the video to be about
-2. **Upload images**: Add 3-5 high-quality images related to your topic
-3. **Choose settings**:
-   - Aspect ratio (9:16 for TikTok, 16:9 for YouTube, 1:1 for Instagram)
-   - Caption style (multiple professional styles available)
-4. **Generate video**: Click "Generate Video" and wait for processing
-5. **Download**: Save your generated video
+### For New Users
+1. **Sign up** - Get 1 free credit automatically
+2. **Generate your first video** - Test the platform
+3. **Upgrade your plan** - Get more credits to continue
 
-## 🔍 Debug Mode
+### For Subscribers
+1. **Choose your plan** - Weekly or monthly billing
+2. **Generate videos** - 1 credit per video
+3. **Monitor usage** - Track credits in navigation
+4. **Auto-renewal** - Credits refresh each billing cycle
 
-For development and troubleshooting, you can enable debug mode:
+## 🛠️ Technical Architecture
 
-```javascript
-// In src/pages/video-generation.astro
-const DEBUG_MODE = true; // Set to false for production
-```
+### Database Schema
+- **user_credits**: Tracks credit balance per user
+- **credit_transactions**: Audit trail of all credit operations
+- **subscription_plans**: Plan details and pricing
+- **user_subscriptions**: User subscription status
+- **videos**: Generated video metadata
 
-**Debug mode provides**:
-- Visual overlay with timing information
-- Frame-by-frame console logs
-- Image usage statistics
-- Segment synchronization details
-- Caption timing verification
+### Credit System Flow
+1. **New user signup** → 1 free credit granted
+2. **Video generation** → 1 credit consumed
+3. **Subscription activation** → Credits granted per plan
+4. **Billing renewal** → Credits refreshed
+
+### API Protection
+- All video generation endpoints require authentication
+- Credit check before processing
+- Automatic credit consumption
+- Error handling for insufficient credits
 
 ## 📊 Performance Metrics
 
@@ -97,106 +174,14 @@ const DEBUG_MODE = true; // Set to false for production
 - **Audio Sync Accuracy**: ±50ms precision
 - **Memory Usage**: Optimized for large image sets
 - **Browser Compatibility**: Chrome, Firefox, Safari, Edge
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Images not switching correctly**
-- Check console for segment timing logs
-- Verify image upload completed successfully
-- Enable debug mode to see current image index
-
-**Audio-video desync**
-- Ensure audio file loads completely before generation
-- Check browser console for timing warnings
-- Verify FPS setting matches your system capabilities
-
-**Caption timing issues**
-- Review caption generation logs
-- Check audio duration calculation
-- Verify word count and timing calculations
-
-### Debug Console Output
-
-When debug mode is enabled, you'll see:
-```
-🎯 IMPROVED TIMING: { totalWords: 45, audioDuration: "20.50s", wordsPerSecond: 2.2 }
-🎬 Frame 0: 0.000s
-🔄 TIMESTAMP 0.000s: Segment 1/4, Image 1/3 (Hello everyone, welcome...)
-📝 Caption: "Hello everyone" (0.00s - 1.82s)
-📊 FINAL IMAGE USAGE STATISTICS:
-  Image 1: 150 frames (24.4%)
-  Image 2: 225 frames (36.6%)
-  Image 3: 240 frames (39.0%)
-```
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-```bash
-npm run build
-vercel --prod
-```
-
-### Netlify
-```bash
-npm run build
-# Upload dist/ folder to Netlify
-```
-
-### Self-hosted
-```bash
-npm run build
-# Serve dist/ folder with any static hosting
-```
-
-## 🛡️ API Rate Limits
-
-- **OpenAI**: Monitor usage in your dashboard
-- **ElevenLabs**: Check character limits for your plan
-- **Consider implementing**: Request caching and user limits
-
-## 📝 File Structure
-
-```
-viroshort/
-├── src/
-│   ├── pages/
-│   │   ├── api/
-│   │   │   ├── generate-script.ts    # OpenAI script generation
-│   │   │   ├── generate-audio.ts     # ElevenLabs TTS
-│   │   │   ├── generate-video.ts     # Video segment creation
-│   │   │   └── generate-captions.ts  # Caption synchronization
-│   │   ├── video-generation.astro    # Main video rendering
-│   │   └── index.astro              # Landing page
-│   └── components/                   # Reusable components
-├── public/                          # Static assets
-└── package.json
-```
-
-## 🔧 Configuration
-
-### Motion Effects
-Edit `renderImageWithControlledMotion()` in `video-generation.astro`:
-```javascript
-const motionEffects = {
-  'zoom-in': { scale: 1.0 + progress * 0.3 },
-  'zoom-out': { scale: 1.3 - progress * 0.3 },
-  'pan-right': { translateX: -50 + progress * 100 },
-  'rotate': { rotation: progress * 10 }
-};
-```
-
-### Caption Styles
-Modify `getCapCutStyleTemplate()` in `generate-captions.ts` to add new styles.
+- **Credit System**: Sub-second response times
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
 3. Make your changes with proper debugging
-4. Test thoroughly with debug mode enabled
+4. Test the credit system thoroughly
 5. Submit a pull request
 
 ## 📄 License
@@ -212,152 +197,25 @@ MIT License - feel free to use this project for commercial purposes.
 ---
 
 **⚡ Latest Updates**
-- ✅ Fixed audio-video synchronization using Aegisub principles
-- ✅ Enhanced caption timing with realistic speech patterns  
-- ✅ Added comprehensive debugging system
-- ✅ Improved image switching accuracy
-- ✅ Added visual debug overlays for development
+- ✅ Implemented comprehensive credit system
+- ✅ Added Paddle billing integration
+- ✅ Created user-specific credit tracking
+- ✅ Added real-time credit balance display
+- ✅ Implemented automatic credit provisioning
+- ✅ Added subscription management
 
-## 🚀 Live Demo
+## 🎯 Credit System Features
 
-[🎬 Try ViroShort Now](https://viroshort-video-generator.pages.dev)
+- **Free Trial**: 1 credit for new users
+- **Real-time Tracking**: Credit balance always visible
+- **Automatic Blocking**: Can't generate without credits
+- **Audit Trail**: Complete transaction history
+- **Flexible Plans**: Weekly and monthly options
+- **Webhook Integration**: Automatic credit grants on subscription
 
-## 💻 Local Development
+## 🔗 Links
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/viroshort-video-generator.git
-cd viroshort-video-generator
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-## 🔧 Environment Variables
-
-Create a `.env` file in the root directory:
-
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-REPLICATE_API_TOKEN=your_replicate_token_here
-FISH_AUDIO_API_KEY=your_fish_audio_api_key_here
-```
-
-### How to get API keys:
-- **OpenAI**: Sign up at [platform.openai.com](https://platform.openai.com) → API Keys → Create new secret key
-- **Replicate**: Sign up at [replicate.com](https://replicate.com) → Account → API Tokens
-- **Fish Audio**: Sign up at [fish.audio](https://fish.audio) → Go API → Get API Key
-
-## 📱 How It Works
-
-1. **📝 Enter Your Script** - Write your video content (up to 30 seconds)
-2. **🎨 Choose Caption Style** - Select from 8 CapCut-inspired templates
-3. **📐 Pick Aspect Ratio** - 9:16 for TikTok, 16:9 for YouTube, 1:1 for Instagram
-4. **🤖 AI Generation** - Watch as AI creates:
-   - 7 unique images based on your script
-   - Natural voiceover with perfect timing
-   - 33+ synced caption segments with emojis
-5. **📥 Download** - Get your professional video ready for social media
-
-## 🎨 Caption Styles
-
-| Style | Description | Perfect For |
-|-------|-------------|-------------|
-| **Default** | Classic black background, white text | Universal content |
-| **STYLE** | Neon yellow glow effect | Tech/Gaming videos |
-| **BROWN** | Bold brown background | Educational content |
-| **FOX** | Modern white background, black text | Clean, professional |
-| **Minimal** | Clean and subtle | Minimalist aesthetic |
-| **Gradient** | Professional gradient background | Premium content |
-| **RED** | Bold red background | High-energy videos |
-| **TECH** | Blue tech style | Technology topics |
-
-## 🔄 Technical Details
-
-### Video Generation Process:
-1. **Script Analysis** - AI breaks down your script into visual segments
-2. **Image Creation** - 7 unique images generated via Replicate FLUX
-3. **Audio Synthesis** - Fish Audio creates natural voiceover (30.537s duration)
-4. **Caption Generation** - 33+ word-level timed segments with smart emojis
-5. **Motion Effects** - Each image gets unique animation (Ken Burns, zoom, pan)
-6. **Perfect Sync** - All elements timed to 4.362s per image
-
-### Performance Stats:
-- ⚡ **Image Generation**: ~45 seconds for 7 images
-- 🎙️ **Voice Synthesis**: ~10 seconds
-- 📝 **Caption Processing**: ~2 seconds
-- 🎬 **Video Rendering**: Real-time in browser
-
-## 🛠️ Built With
-
-- **Frontend**: Astro + React + TypeScript
-- **Styling**: Tailwind CSS
-- **AI Services**: 
-  - Replicate API (FLUX image generation)
-  - Fish Audio (Voice synthesis)
-  - OpenAI GPT-4 (Script generation)
-- **Hosting**: Cloudflare Pages
-- **Video Processing**: Canvas API + MediaRecorder
-
-## 🚀 Deployment
-
-### Deploy to Cloudflare Pages:
-
-1. Fork this repository
-2. Connect to Cloudflare Pages
-3. Set build settings:
-   - **Framework**: Astro
-   - **Build command**: `npm run build`
-   - **Output directory**: `dist`
-4. Add environment variables in Cloudflare dashboard
-5. Deploy!
-
-### Build locally:
-```bash
-npm run build
-npm run preview
-```
-
-## 📊 Example Output
-
-Your generated video will include:
-- **Duration**: Exactly matches audio (30.537s)
-- **Images**: 7 AI-generated visuals
-- **Captions**: 33+ perfectly timed segments
-- **Motion**: Unique animation per image
-- **Quality**: Professional-grade output
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Replicate** for powerful AI image generation
-- **Fish Audio** for natural voice synthesis
-- **OpenAI** for script generation
-- **Astro** for the amazing web framework
-- **CapCut** for caption style inspiration
-
-## 📞 Support
-
-Found a bug or have a suggestion? [Open an issue](https://github.com/yourusername/viroshort-video-generator/issues)
-
----
-
-<div align="center">
-  <strong>🎬 Made with ❤️ for content creators</strong>
-  <br>
-  <em>Turn your ideas into viral videos in seconds!</em>
-</div>
+- [Live Demo](https://your-domain.com)
+- [Supabase Dashboard](https://app.supabase.com)
+- [Paddle Dashboard](https://vendors.paddle.com)
+- [API Documentation](https://your-domain.com/docs)
