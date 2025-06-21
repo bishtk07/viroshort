@@ -45,13 +45,6 @@ try {
 
 const templates = [
   {
-    id: 'custom',
-    name: 'Custom Prompt',
-    description: 'Create a video from your own custom script or prompt.',
-    icon: '💡',
-    prompt: 'Create a custom video script based on user input.'
-  },
-  {
     id: 'manual',
     name: 'Manual Script Input',
     description: 'Enter your own pre-written script directly.',
@@ -87,6 +80,34 @@ const templates = [
     prompt: 'Create a spine-chilling story that builds psychological tension and ends with an unexpected twist.'
   },
   {
+    id: 'crime',
+    name: 'Crime Stories',
+    description: 'Gripping true crime stories and mysteries.',
+    icon: '🔍',
+    prompt: 'Create a compelling crime story with suspense, mystery, and dramatic revelations that keep viewers on the edge of their seats.'
+  },
+  {
+    id: 'thriller',
+    name: 'Thriller Stories',
+    description: 'High-tension thriller narratives with plot twists.',
+    icon: '⚡',
+    prompt: 'Create an intense thriller story with psychological tension, unexpected plot twists, and edge-of-your-seat suspense.'
+  },
+  {
+    id: 'war',
+    name: 'War Stories',
+    description: 'Historical war stories and military narratives.',
+    icon: '⚔️',
+    prompt: 'Create a powerful war story focusing on human courage, sacrifice, and the dramatic moments that define history.'
+  },
+  {
+    id: 'religion',
+    name: 'Religion Stories',
+    description: 'Inspirational religious and spiritual narratives.',
+    icon: '🙏',
+    prompt: 'Create an inspiring religious or spiritual story that explores faith, wisdom, and life-changing moments with respect and depth.'
+  },
+  {
     id: 'bedtime',
     name: 'Bedtime Stories',
     description: 'Soothing and imaginative stories perfect for bedtime.',
@@ -120,6 +141,13 @@ const templates = [
     description: 'Interesting and surprising facts that captivate viewers.',
     icon: '🎯',
     prompt: 'Create an engaging script about mind-blowing facts that surprise and educate.'
+  },
+  {
+    id: 'fact-videos',
+    name: 'Fact Videos',
+    description: 'Educational content with verified facts and insights.',
+    icon: '📊',
+    prompt: 'Create an educational video script presenting fascinating, verified facts with clear explanations and engaging delivery.'
   },
   {
     id: 'jokes',
@@ -473,16 +501,7 @@ declare global {
         </div>
       </div>
 
-      <!-- Test Configuration Button (Debug) -->
-      <div class="max-w-3xl mx-auto mb-8 text-center">
-        <button 
-          id="testConfigBtn"
-          class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-        >
-          Test API Configuration
-        </button>
-        <div id="configResults" class="mt-2 text-sm text-gray-600"></div>
-      </div>
+
 
       <!-- Template Grid -->
       <div class="max-w-7xl mx-auto">
@@ -1307,51 +1326,7 @@ declare global {
     manualScriptInput.focus();
   }
 
-  // Test configuration button
-  document.getElementById('testConfigBtn')?.addEventListener('click', async () => {
-    const btn = document.getElementById('testConfigBtn');
-    const results = document.getElementById('configResults');
-    
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Testing...';
-    }
-    
-    if (results) {
-      results.textContent = 'Checking API configuration...';
-    }
 
-    try {
-      const response = await fetch('/api/test-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      const data = await response.json();
-      
-      if (results) {
-        if (data.success) {
-          results.innerHTML = `
-            <div class="text-green-600">
-              ✅ OpenAI: ${data.config.hasOpenAI ? 'Configured' : 'Missing'} (${data.config.openAILength} chars)<br>
-              ✅ ElevenLabs: ${data.config.hasElevenLabs ? 'Configured' : 'Missing'} (${data.config.elevenLabsLength} chars)
-            </div>
-          `;
-        } else {
-          results.innerHTML = `<div class="text-red-600">❌ Error: ${data.error}</div>`;
-        }
-      }
-    } catch (error) {
-      if (results) {
-        results.innerHTML = `<div class="text-red-600">❌ Failed to test: ${error.message}</div>`;
-      }
-    }
-
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Test API Configuration';
-    }
-  });
 
   // Add quick recovery functions
   function showQuickRecovery() {

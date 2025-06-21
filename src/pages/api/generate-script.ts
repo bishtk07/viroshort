@@ -3,16 +3,20 @@ import { supabase } from '../../lib/supabase';
 
 // Template definitions for better script generation
 const TEMPLATES: Record<string, string> = {
-  'custom': 'Create a custom video script that is engaging and memorable. Focus on: ',
   'random': 'Generate a unique and creative story that surprises and entertains. Theme: ',
   'travel': 'Create an inspiring travel narrative that captures the essence of exploration. Focus on: ',
   'what-if': 'Explore a fascinating hypothetical scenario that makes people think. Consider: ',
   'scary': 'Create a spine-chilling story with psychological suspense. Setting: ',
+  'crime': 'Create a compelling crime story with suspense and mystery. Focus on: ',
+  'thriller': 'Craft an intense thriller with psychological tension and plot twists. Scenario: ',
+  'war': 'Tell a powerful war story focusing on human courage and sacrifice. Focus on: ',
+  'religion': 'Share an inspiring religious or spiritual story with wisdom and depth. Topic: ',
   'bedtime': 'Craft a soothing and imaginative bedtime story that helps relaxation. Story about: ',
   'history': 'Share a fascinating historical tale that surprises and educates. Topic: ',
   'urban-legends': 'Tell an intriguing urban legend that captures imagination. Focus on: ',
   'motivational': 'Create an inspiring message that motivates and energizes. Theme: ',
   'fun-facts': 'Share mind-blowing facts that surprise and educate. Subject: ',
+  'fact-videos': 'Present educational content with verified facts and insights. Subject: ',
   'jokes': 'Craft a clever and entertaining long-form joke. Topic: ',
   'life-tips': 'Share a practical and valuable life hack. Area: '
 };
