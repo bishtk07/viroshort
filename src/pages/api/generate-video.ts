@@ -1,5 +1,4 @@
 import type { APIRoute } from 'astro';
-import { supabase } from '../../lib/supabase';
 
 interface VideoGenerationRequest {
   script: string;
@@ -24,63 +23,31 @@ interface VideoSegment {
 
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
+    console.log('🎬 === GENERATE-VIDEO API CALLED ===');
+    
     // Check authentication first
     const authHeader = request.headers.get('authorization');
+    console.log('🔐 Auth header exists:', !!authHeader);
+    
     if (!authHeader) {
+      console.log('❌ No auth header found');
       return new Response(JSON.stringify({ 
         error: 'Authentication required' 
       }), { status: 401 });
     }
 
-    // Get user from token
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(JSON.stringify({ 
-        error: 'Invalid authentication token' 
-      }), { status: 401 });
-    }
-
-    // Check user credits
-    const { data: creditCheck, error: creditError } = await supabase
-      .rpc('check_user_credits', { p_user_id: user.id });
-
-    if (creditError) {
-      console.error('Credit check error:', creditError);
-      return new Response(JSON.stringify({ 
-        error: 'Failed to check credits' 
-      }), { status: 500 });
-    }
-
-    if (!creditCheck?.has_credits) {
-      return new Response(JSON.stringify({ 
-        error: 'Insufficient credits',
-        creditsAvailable: creditCheck?.credits_available || 0,
-        planType: creditCheck?.plan_type || 'free',
-        message: 'You have no credits remaining. Please upgrade your plan to continue generating videos.'
-      }), { status: 402 }); // 402 Payment Required
-    }
-
     // Get the request data
     const data: VideoGenerationRequest = await request.json();
-    console.log('🎬 AUDIO-SYNCHRONIZED VIDEO REQUEST:', data);
+    console.log('📨 Request data received:', {
+      hasScript: !!data.script,
+      hasAudioUrl: !!data.audioUrl,
+      imageCount: data.imageUrls?.length || 0,
+      aspectRatio: data.aspectRatio,
+      audioDuration: data.audioDuration,
+      style: data.style
+    });
     
-    // Consume a credit before processing
-    const { data: consumeResult, error: consumeError } = await supabase
-      .rpc('consume_credit', { p_user_id: user.id });
-
-    if (consumeError || !consumeResult?.success) {
-      console.error('Credit consumption error:', consumeError);
-      return new Response(JSON.stringify({ 
-        error: consumeResult?.error || 'Failed to consume credit',
-        creditsAvailable: consumeResult?.credits_available || 0
-      }), { status: 402 });
-    }
-
-    console.log(`✅ Credit consumed: ${consumeResult.credits_before} → ${consumeResult.credits_after}`);
-    
-    // Get API keys from Cloudflare environment variables
+    // Get API keys from environment
     const OPENAI_API_KEY = 
       (locals as any)?.runtime?.env?.OPENAI_API_KEY ||
       import.meta.env.OPENAI_API_KEY || 
@@ -96,7 +63,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       import.meta.env.FISH_AUDIO_API_KEY || 
       process.env.FISH_AUDIO_API_KEY;
 
-    console.log('🎬 generate-video: Environment check:', {
+    console.log('🔑 Environment check:', {
       hasOpenAIKey: !!OPENAI_API_KEY,
       hasReplicateToken: !!REPLICATE_API_TOKEN,
       hasFishAudioKey: !!FISH_AUDIO_API_KEY,
@@ -104,6 +71,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     });
 
     if (!OPENAI_API_KEY || !REPLICATE_API_TOKEN || !FISH_AUDIO_API_KEY) {
+      console.log('❌ Missing API keys');
       return new Response(JSON.stringify({ 
         success: false, 
         error: 'Missing required API keys. Please check your environment variables.',
@@ -121,6 +89,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const { script, audioUrl, imageUrls, aspectRatio, audioDuration, style } = data;
 
     if (!script || !audioUrl || !imageUrls || !aspectRatio || !audioDuration) {
+      console.log('❌ Missing required fields');
       return new Response(JSON.stringify({
         error: 'Missing required fields: script, audioUrl, imageUrls, aspectRatio, audioDuration' 
       }), { status: 400 });
@@ -156,6 +125,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
     console.log('✅ AUDIO-SYNCED SEGMENTS:', segments.map((s, i) => 
       `${s.start.toFixed(2)}-${s.end.toFixed(2)}s: Image ${i+1} | "${s.text.substring(0, 25)}..."`
     ));
+
+    console.log('✅ Video generation request processed successfully');
 
     return new Response(JSON.stringify({
       success: true,

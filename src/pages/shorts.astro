@@ -113,17 +113,58 @@ const { data: templates } = await supabase
     }
 
     try {
+      // Get authentication token
+      const { supabase } = await import('../lib/supabase-client');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        alert('You must be logged in to generate scripts');
+        window.location.href = '/landing';
+        return;
+      }
+
+      // Get current credits from localStorage for validation
+      const userCredits = localStorage.getItem('userCredits') || '1';
+      console.log('💰 Including user credits in request:', userCredits);
+
       const response = await fetch('/api/generate-script', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
-          templateId: selectedTemplate.getAttribute('data-template-id')
+          templateId: selectedTemplate.getAttribute('data-template-id'),
+          prompt: 'Generate a short video script',
+          duration: 30, // Default duration
+          template: 'custom',
+          userCredits: userCredits // ✅ Send current credits for validation
         })
       });
 
-      const { script } = await response.json();
-      if (scriptTextarea) {
-        scriptTextarea.value = script;
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 402) {
+          // No credits - redirect to billing
+          alert(errorData.message || 'You have no credits remaining. Please upgrade your plan to continue.');
+          window.location.href = '/billing';
+          return;
+        }
+        throw new Error(errorData.error || 'Failed to generate script');
+      }
+
+      const data = await response.json();
+      if (scriptTextarea && data.script) {
+        scriptTextarea.value = data.script;
+        
+        // Update credits display if available
+        if (data.creditsRemaining !== undefined) {
+          localStorage.setItem('userCredits', data.creditsRemaining.toString());
+          // Dispatch event to update credit display
+          window.dispatchEvent(new CustomEvent('credits-updated', { 
+            detail: { credits: data.creditsRemaining } 
+          }));
+        }
       }
     } catch (error) {
       console.error('Error generating script:', error);

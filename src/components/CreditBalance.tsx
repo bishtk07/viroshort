@@ -1,108 +1,134 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase-client';
 
-interface CreditInfo {
-  credits_available: number;
-  plan_type: string;
-  monthly_limit: number;
-  weekly_limit: number;
-  is_weekly_plan: boolean;
-}
-
-export const CreditBalance: React.FC = () => {
-  const [credits, setCredits] = useState<CreditInfo | null>(null);
+export default function CreditBalance() {
+  const [credits, setCredits] = useState<number>(1);
+  const [planType, setPlanType] = useState<string>('free');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
+    const fetchCredits = async () => {
+      try {
+        // Get the current session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.user?.id) {
+          console.log('💰 No session, setting default credits');
+          if (mounted) {
+            setCredits(1);
+            setLoading(false);
+          }
+          return;
+        }
+
+        console.log('💰 Getting credits from DATABASE for user:', session.user.id);
+
+        // ✅ Use database function instead of localStorage
+        const { data: creditData, error } = await supabase
+          .rpc('check_user_credits', { p_user_id: session.user.id });
+
+        if (error) {
+          console.warn('💰 Database credit check failed:', error);
+          // Fallback to localStorage if database fails
+          const localCredits = localStorage.getItem('userCredits');
+          const fallbackCredits = localCredits ? parseInt(localCredits) : 1;
+          
+          if (mounted) {
+            setCredits(fallbackCredits);
+            setPlanType('free');
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (creditData) {
+          const dbCredits = creditData.credits_available || 0;
+          const dbPlan = creditData.plan_type || 'free';
+          
+          console.log('✅ Database credits:', dbCredits, 'Plan:', dbPlan);
+          
+          if (mounted) {
+            setCredits(dbCredits);
+            setPlanType(dbPlan);
+            setLoading(false);
+            
+            // Also sync to localStorage for offline usage
+            localStorage.setItem('userCredits', dbCredits.toString());
+          }
+        } else {
+          console.warn('💰 No credit data returned from database');
+          if (mounted) {
+            setCredits(1);
+            setPlanType('free');
+            setLoading(false);
+          }
+        }
+
+      } catch (err) {
+        console.error('💰 Error in database credit fetch:', err);
+        if (mounted) {
+          // Fallback to localStorage
+          const localCredits = localStorage.getItem('userCredits');
+          setCredits(localCredits ? parseInt(localCredits) : 1);
+          setLoading(false);
+        }
+      }
+    };
+
     fetchCredits();
-    
-    // Subscribe to auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+
+    // Listen for auth changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('💰 Auth state changed:', event);
       fetchCredits();
     });
 
+    // Listen for credit updates via custom event
+    const handleCreditUpdate = (event: CustomEvent) => {
+      console.log('💰 Credit update event received:', event.detail);
+      if (event.detail && event.detail.credits !== undefined) {
+        setCredits(event.detail.credits);
+        localStorage.setItem('userCredits', event.detail.credits.toString());
+      }
+    };
+    
+    window.addEventListener('creditUpdate', handleCreditUpdate as EventListener);
+    window.addEventListener('credits-updated', handleCreditUpdate as EventListener);
+
     return () => {
+      mounted = false;
       authListener?.subscription.unsubscribe();
+      window.removeEventListener('creditUpdate', handleCreditUpdate as EventListener);
+      window.removeEventListener('credits-updated', handleCreditUpdate as EventListener);
     };
   }, []);
 
-  const fetchCredits = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        setCredits(null);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .rpc('check_user_credits', { p_user_id: user.id });
-
-      if (error) throw error;
-
-      setCredits({
-        credits_available: data.credits_available || 0,
-        plan_type: data.plan_type || 'free',
-        monthly_limit: data.monthly_limit || 1,
-        weekly_limit: data.weekly_limit || 1,
-        is_weekly_plan: data.is_weekly_plan || false
-      });
-    } catch (err) {
-      console.error('Error fetching credits:', err);
-      setError('Failed to load credits');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (loading) {
     return (
-      <div className="credit-balance-container">
-        <div className="animate-pulse bg-gray-200 h-6 w-24 rounded"></div>
+      <div className="flex items-center space-x-2">
+        <span className="text-sm text-gray-500">Credits:</span>
+        <span className="animate-pulse bg-gray-200 h-5 w-8 rounded"></span>
       </div>
     );
   }
 
-  if (error || !credits) {
-    return null;
-  }
-
-  const isLowCredits = credits.credits_available <= 2;
-  const isNoCredits = credits.credits_available === 0;
-
   return (
-    <div className="credit-balance-container flex items-center gap-4">
-      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-        isNoCredits ? 'bg-red-50 text-red-600' : 
-        isLowCredits ? 'bg-yellow-50 text-yellow-700' : 
-        'bg-green-50 text-green-700'
-      }`}>
-        <span className="text-lg">
-          {isNoCredits ? '🚫' : isLowCredits ? '⚠️' : '✨'}
-        </span>
-        <span className="font-medium">
-          {credits.credits_available} {credits.credits_available === 1 ? 'Credit' : 'Credits'}
-        </span>
-        <span className="text-sm opacity-75">
-          ({credits.plan_type})
-        </span>
-      </div>
-      
-      {(isLowCredits || isNoCredits) && (
-        <a
-          href="/billing"
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            isNoCredits 
-              ? 'bg-red-600 text-white hover:bg-red-700' 
-              : 'bg-yellow-600 text-white hover:bg-yellow-700'
-          }`}
+    <div className="flex items-center space-x-2">
+      <span className="text-sm text-gray-500">Credits:</span>
+      <span className={`font-semibold ${credits > 0 ? 'text-gray-900 dark:text-gray-100' : 'text-red-600'}`}>
+        {credits}
+      </span>
+      {credits === 0 && (
+        <a 
+          href="/billing" 
+          className="text-xs text-blue-500 hover:text-blue-600 ml-1"
         >
-          {isNoCredits ? 'Upgrade Now' : 'Get More Credits'}
+          (upgrade)
         </a>
       )}
+      <span className="text-xs text-gray-400">({planType})</span>
     </div>
   );
-}; 
+} 

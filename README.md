@@ -50,7 +50,7 @@ An advanced AI-powered video generation platform that creates viral-style short 
 - Supabase account (for database and authentication)
 - Paddle account (for billing)
 - API Keys:
-  - OpenAI API key (for script generation)
+- OpenAI API key (for script generation)
   - Fish Audio API key (for text-to-speech)
   - Replicate API key (for image generation)
 

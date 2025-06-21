@@ -186,10 +186,42 @@ console.log('[Video Generation Page - Diagnostic] Style context for page:', styl
       </div>
 
       <!-- Navigation -->
-      <div class="mt-8 text-center">
+      <div class="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
         <button onclick="history.back()" class="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded-lg transition duration-150">
           ← Back to Previous Step
         </button>
+        
+        <!-- Generate New Video Button -->
+        <button 
+          id="generateNewVideoBtn" 
+          class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          🎬 Generate New Video
+        </button>
+      </div>
+
+      <!-- Upgrade Modal (hidden by default) -->
+      <div id="upgradeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-8 max-w-md mx-4">
+          <h2 class="text-2xl font-bold text-center mb-4">Out of Credits!</h2>
+          <p class="text-gray-600 text-center mb-6">
+            You've used all your free credits. Upgrade to continue creating amazing videos!
+          </p>
+          <div class="flex flex-col gap-3">
+            <a 
+              href="/billing" 
+              class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg text-center transition duration-150"
+            >
+              🚀 Upgrade Now
+            </a>
+            <button 
+              id="closeUpgradeModal" 
+              class="text-gray-500 hover:text-gray-700 py-2 px-4 rounded-lg transition duration-150"
+            >
+              Maybe Later
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -595,8 +627,8 @@ ${script}`,
         console.warn('⚠️ Failed to load speech marks from storage:', error);
       }
 
-      // Get authentication token
-      const { supabase } = await import('../lib/supabase');
+      // Get authentication token using client-side Supabase
+      const { supabase } = await import('../lib/supabase-client');
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -1065,6 +1097,98 @@ ${script}`,
     
     // Set default selection
     document.querySelector('[data-style="capcut-black"]')?.classList.add('selected');
+
+    // ✅ GENERATE NEW VIDEO BUTTON FUNCTIONALITY
+    const generateNewVideoBtn = document.getElementById('generateNewVideoBtn');
+    const upgradeModal = document.getElementById('upgradeModal');
+    const closeUpgradeModal = document.getElementById('closeUpgradeModal');
+
+    // Handle Generate New Video button click
+    generateNewVideoBtn?.addEventListener('click', async () => {
+      try {
+        generateNewVideoBtn.disabled = true;
+        generateNewVideoBtn.textContent = '⏳ Checking credits...';
+
+        // Import Supabase client
+        const { supabase } = await import('../lib/supabase-client');
+        
+        // Get current session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.user?.id) {
+          // Not logged in - redirect to landing
+          window.location.href = '/landing';
+          return;
+        }
+
+        console.log('🎬 Checking credits for new video generation...');
+
+        // Check credits using database function
+        const { data: creditData, error } = await supabase
+          .rpc('check_user_credits', { p_user_id: session.user.id });
+
+        if (error) {
+          console.warn('⚠️ Database credit check failed:', error);
+          // Fallback to localStorage for backward compatibility
+          const localCredits = localStorage.getItem('userCredits');
+          const fallbackCredits = localCredits ? parseInt(localCredits) : 0;
+          
+          if (fallbackCredits > 0) {
+            console.log('💰 Using localStorage fallback:', fallbackCredits, 'credits');
+            window.location.href = '/';
+            return;
+          } else {
+            // Show upgrade modal
+            upgradeModal.classList.remove('hidden');
+            generateNewVideoBtn.disabled = false;
+            generateNewVideoBtn.textContent = '🎬 Generate New Video';
+            return;
+          }
+        }
+
+        const creditsAvailable = creditData?.credits_available || 0;
+        const planType = creditData?.plan_type || 'free';
+        
+        console.log(`✅ User has ${creditsAvailable} credits (${planType} plan)`);
+
+        if (creditsAvailable > 0) {
+          // User has credits - redirect to homepage for new video
+          console.log('🚀 Redirecting to homepage for new video creation');
+          window.location.href = '/';
+        } else {
+          // No credits - show upgrade modal
+          console.log('💳 No credits available - showing upgrade modal');
+          upgradeModal.classList.remove('hidden');
+        }
+
+      } catch (error) {
+        console.error('❌ Error checking credits:', error);
+        // On error, allow user to try anyway (graceful degradation)
+        window.location.href = '/';
+      } finally {
+        generateNewVideoBtn.disabled = false;
+        generateNewVideoBtn.textContent = '🎬 Generate New Video';
+      }
+    });
+
+    // Handle upgrade modal close
+    closeUpgradeModal?.addEventListener('click', () => {
+      upgradeModal.classList.add('hidden');
+    });
+
+    // Close modal when clicking outside
+    upgradeModal?.addEventListener('click', (e) => {
+      if (e.target === upgradeModal) {
+        upgradeModal.classList.add('hidden');
+      }
+    });
+
+    // Escape key to close modal
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !upgradeModal.classList.contains('hidden')) {
+        upgradeModal.classList.add('hidden');
+      }
+    });
   });
 </script>
 

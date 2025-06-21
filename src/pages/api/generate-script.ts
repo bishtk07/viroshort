@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { supabase } from '../../lib/supabase';
 
 // Template definitions for better script generation
 const TEMPLATES: Record<string, string> = {
@@ -17,41 +18,82 @@ const TEMPLATES: Record<string, string> = {
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  // Get OpenAI API key from Cloudflare environment variables
-  const OPENAI_API_KEY = 
-    (locals as any)?.runtime?.env?.OPENAI_API_KEY ||
-    import.meta.env.OPENAI_API_KEY ||
-    process.env.OPENAI_API_KEY;
-
-  console.log('📝 generate-script: Environment check:', {
-    hasCloudflareEnv: !!((locals as any)?.runtime?.env?.OPENAI_API_KEY),
-    hasImportMetaEnv: !!import.meta.env.OPENAI_API_KEY,
-    hasProcessEnv: !!process.env.OPENAI_API_KEY,
-    finalKeyFound: !!OPENAI_API_KEY,
-    keyLength: OPENAI_API_KEY ? OPENAI_API_KEY.length : 0
-  });
-
-  if (!OPENAI_API_KEY) {
-    console.error('🚨 generate-script: OpenAI API key not found');
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your environment variables.',
-      debug: {
-        hasCloudflareEnv: !!((locals as any)?.runtime?.env?.OPENAI_API_KEY),
-        hasImportMetaEnv: !!import.meta.env.OPENAI_API_KEY,
-        hasProcessEnv: !!process.env.OPENAI_API_KEY
-      }
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+  console.log('📝 === GENERATE SCRIPT API CALLED ===');
+  
+  // Check authentication first
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader) {
+    console.log('❌ No auth header found');
+    return new Response(JSON.stringify({ 
+      error: 'Authentication required',
+      errorType: 'auth_required' 
+    }), { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
 
-  console.log('=== GENERATE SCRIPT API CALLED ===');
+  // Get user from token
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   
+  if (authError || !user) {
+    console.log('❌ Invalid auth token');
+    return new Response(JSON.stringify({ 
+      error: 'Invalid authentication token',
+      errorType: 'invalid_auth'
+    }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  console.log('👤 User authenticated:', user.email);
+
+  // Check user credits - Simplified approach using localStorage logic
+  let creditsAvailable = 1; // Default for new users
+  let planType = 'free';
+
   try {
-    const { prompt, duration, template } = await request.json();
-    console.log('Request data:', { prompt, duration, template });
+    // Get credits from request body (sent from frontend localStorage)
+    const requestBody = await request.json();
+    const { prompt, duration, template, userCredits } = requestBody;
+    
+    console.log('📊 Credit check:', {
+      userCreditsFromRequest: userCredits,
+      userId: user.id
+    });
+
+    // Use credits from frontend (which comes from localStorage)
+    creditsAvailable = parseInt(userCredits || '0');
+
+    // Validate we have enough credits
+    if (creditsAvailable <= 0) {
+      console.log('❌ Insufficient credits:', creditsAvailable);
+      return new Response(JSON.stringify({ 
+        error: 'Insufficient credits',
+        errorType: 'no_credits',
+        creditsAvailable: 0,
+        planType: planType,
+        message: 'You have no credits remaining. Please upgrade your plan to continue generating videos.'
+      }), { status: 402, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    console.log(`✅ User has ${creditsAvailable} credits available`);
+
+    // Get OpenAI API key
+    const OPENAI_API_KEY = 
+      (locals as any)?.runtime?.env?.OPENAI_API_KEY ||
+      import.meta.env.OPENAI_API_KEY ||
+      process.env.OPENAI_API_KEY;
+
+    if (!OPENAI_API_KEY) {
+      console.error('🚨 OpenAI API key not found');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your environment variables.',
+        errorType: 'api_key_missing'
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('📝 Request data:', { prompt: prompt?.substring(0, 50) + '...', duration, template });
 
     if (!prompt || !duration) {
       return new Response(JSON.stringify({
@@ -68,7 +110,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const templateEnhancement = TEMPLATES[template as string] || '';
     const fullPrompt = `${templateEnhancement}${prompt}`;
 
-    console.log('Full prompt being sent:', fullPrompt);
+    console.log('🤖 Calling OpenAI API...');
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -112,11 +154,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }),
     });
 
-    console.log('OpenAI Response Status:', openAIResponse.status);
+    console.log('🤖 OpenAI Response Status:', openAIResponse.status);
 
     if (!openAIResponse.ok) {
       const errorText = await openAIResponse.text();
-      console.error('OpenAI API Error:', errorText);
+      console.error('❌ OpenAI API Error:', errorText);
       
       let errorData: any;
       try {
@@ -157,10 +199,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const data = await openAIResponse.json();
-    console.log('OpenAI Response:', data);
+    console.log('✅ OpenAI response received');
 
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('Invalid OpenAI response structure:', data);
+      console.error('❌ Invalid OpenAI response structure:', data);
       return new Response(JSON.stringify({
         success: false,
         error: 'Invalid response from OpenAI API',
@@ -201,62 +243,28 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .replace(/\s+/g, ' ')
       .trim();
 
-    console.log('Generated script (cleaned):', cleanedScript.substring(0, 100) + '...');
+    console.log('📄 Generated script:', cleanedScript.substring(0, 100) + '...');
+
+    // ✅ CONSUME CREDIT: This is where the credit gets used
+    const newCreditBalance = creditsAvailable - 1;
+    console.log(`💰 CONSUMING CREDIT: ${creditsAvailable} → ${newCreditBalance}`);
 
     return new Response(JSON.stringify({
       success: true,
       script: cleanedScript,
       wordCount: cleanedScript.split(/\s+/).length,
-      estimatedDuration: duration
+      estimatedDuration: duration,
+      creditsRemaining: newCreditBalance,
+      planType: planType,
+      creditConsumed: true // This tells the frontend to update credits
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (error: any) {
-    console.error('OpenAI API Error:', error.response?.data || error.message);
+    console.error('💥 Script generation error:', error);
     
-    // Handle specific OpenAI errors
-    if (error.response?.status === 429) {
-      const errorData = error.response.data?.error;
-      
-      if (errorData?.type === 'insufficient_quota' || errorData?.code === 'insufficient_quota') {
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'OpenAI quota exceeded. Please add credits to your account or use an alternative.',
-          errorType: 'quota_exceeded',
-          details: errorData?.message || 'Your OpenAI API quota has been exceeded.'
-        }), {
-          status: 429,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-      
-      if (errorData?.type === 'rate_limit_exceeded') {
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'Rate limit exceeded. Please wait a moment and try again.',
-          errorType: 'rate_limit',
-          details: errorData?.message || 'Too many requests. Please wait.'
-        }), {
-          status: 429,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-    }
-    
-    // Handle invalid API key
-    if (error.response?.status === 401) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: 'Invalid OpenAI API key. Please check your configuration.',
-        errorType: 'invalid_key'
-      }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
     return new Response(JSON.stringify({ 
       success: false, 
       error: 'Failed to generate script. Please try again.',

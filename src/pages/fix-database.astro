@@ -1,0 +1,165 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Fix Database Schema">
+  <main class="container mx-auto px-4 py-8 max-w-4xl">
+    <h1 class="text-3xl font-bold mb-8">Fix Database Schema</h1>
+    
+    <div class="bg-yellow-100 p-6 rounded-lg mb-8">
+      <h2 class="text-xl font-semibold mb-4">⚠️ Database Schema Update Required</h2>
+      <p class="mb-4">
+        The videos table needs to be updated to include the missing <code>template</code> and <code>user_id</code> columns. 
+        This will fix the video generation error you encountered.
+      </p>
+      <p class="text-sm text-gray-600">
+        You need to run the SQL migration in your Supabase dashboard. Copy the SQL below and paste it into the SQL Editor.
+      </p>
+    </div>
+    
+    <div class="bg-blue-100 p-6 rounded-lg mb-8">
+      <h2 class="text-xl font-semibold mb-4">📋 SQL Migration Script</h2>
+      <p class="mb-4 text-sm text-gray-600">
+        1. Go to your <a href="https://supabase.com/dashboard" target="_blank" class="text-blue-600 underline">Supabase Dashboard</a><br>
+        2. Select your project<br>
+        3. Go to "SQL Editor" in the sidebar<br>
+        4. Paste the SQL below and click "Run"
+      </p>
+      
+      <div class="bg-gray-800 p-4 rounded-lg overflow-x-auto">
+        <pre class="text-green-400 text-sm"><code id="migrationSQL">-- Fix Database Schema for Viroshort
+-- Run this in your Supabase SQL Editor
+
+-- Drop existing videos table and recreate with proper schema
+DROP TABLE IF EXISTS videos CASCADE;
+
+CREATE TABLE videos (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'processing',
+    template TEXT,
+    customizations JSONB,
+    script TEXT,
+    images TEXT[],
+    voice_url TEXT,
+    final_url TEXT
+);
+
+-- Add index for better performance
+CREATE INDEX idx_videos_user_id ON videos(user_id);
+
+-- Enable RLS
+ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies
+CREATE POLICY "Users can view their own videos" ON videos
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own videos" ON videos
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own videos" ON videos
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- Create user_profiles table if it doesn't exist
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    credits_available INTEGER DEFAULT 1,
+    plan_type TEXT DEFAULT 'free',
+    subscription_status TEXT DEFAULT 'inactive',
+    paddle_subscription_id TEXT,
+    monthly_credits_used INTEGER DEFAULT 0,
+    monthly_reset_date TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW() + INTERVAL '1 month'),
+    total_credits_purchased INTEGER DEFAULT 1,
+    total_credits_used INTEGER DEFAULT 0
+);
+
+-- Enable RLS for user_profiles
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- RLS policies for user_profiles
+CREATE POLICY "Users can view their own profile" ON user_profiles
+    FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile" ON user_profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile" ON user_profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);</code></pre>
+      </div>
+      
+      <button id="copySQL" class="mt-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+        📋 Copy SQL to Clipboard
+      </button>
+    </div>
+    
+
+    
+    <div class="bg-green-100 p-6 rounded-lg">
+      <h3 class="text-lg font-semibold mb-4">✅ After Running the SQL:</h3>
+      <p class="mb-4">Once you've run the SQL in your Supabase dashboard:</p>
+      <ol class="list-decimal list-inside space-y-2 text-sm mb-4">
+        <li>The videos table will have the required <code>template</code> column</li>
+        <li>User access will be properly configured with Row Level Security</li>
+        <li>Video generation should work correctly</li>
+      </ol>
+      
+      <a href="/" class="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold">
+        ← Return to Homepage & Test Video Generation
+      </a>
+    </div>
+    
+    <div class="mt-8 bg-gray-100 p-6 rounded-lg">
+      <h3 class="text-lg font-semibold mb-4">What this migration does:</h3>
+      <ul class="list-disc list-inside space-y-2 text-sm">
+        <li>Recreates the <code>videos</code> table with the missing <code>template</code> and <code>user_id</code> columns</li>
+        <li>Adds Row Level Security policies so users can only access their own videos</li>
+        <li>Creates the <code>user_profiles</code> table for credit tracking</li>
+        <li>Adds proper database indexes for better performance</li>
+        <li>Fixes the database schema to match what the API expects</li>
+      </ul>
+      
+      <p class="mt-4 text-sm text-gray-600">
+        <strong>Note:</strong> This will drop any existing videos table data. 
+        Since this appears to be a development environment, this should be fine.
+      </p>
+    </div>
+    
+    <div class="mt-6">
+      <a href="/" class="text-blue-500 hover:text-blue-600">← Back to Homepage</a>
+    </div>
+  </main>
+  
+  <script>
+    // Copy SQL to clipboard functionality
+    document.getElementById('copySQL').addEventListener('click', async () => {
+      const sqlText = document.getElementById('migrationSQL').textContent;
+      const button = document.getElementById('copySQL');
+      
+      try {
+        await navigator.clipboard.writeText(sqlText);
+        button.textContent = '✅ Copied!';
+        button.className = 'mt-4 bg-green-600 text-white px-4 py-2 rounded-lg';
+        
+        setTimeout(() => {
+          button.textContent = '📋 Copy SQL to Clipboard';
+          button.className = 'mt-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg';
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+        button.textContent = '❌ Copy Failed';
+        button.className = 'mt-4 bg-red-500 text-white px-4 py-2 rounded-lg';
+        
+        setTimeout(() => {
+          button.textContent = '📋 Copy SQL to Clipboard';
+          button.className = 'mt-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg';
+        }, 2000);
+      }
+    });
+  </script>
+</Layout> 

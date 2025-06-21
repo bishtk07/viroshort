@@ -68,35 +68,44 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          type: 'shorts' | 'gameplay';
-          script: string;
-          images: string[];
-          voice_url: string;
-          final_url: string;
+          type: string;
           status: 'pending' | 'processing' | 'completed' | 'failed';
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          type: 'shorts' | 'gameplay';
-          script: string;
-          images?: string[];
-          voice_url?: string;
-          final_url?: string;
-          status?: 'pending' | 'processing' | 'completed' | 'failed';
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          type?: 'shorts' | 'gameplay';
+          template?: string;
+          customizations?: any;
           script?: string;
           images?: string[];
           voice_url?: string;
           final_url?: string;
+          created_at: string;
+          updated_at?: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: string;
           status?: 'pending' | 'processing' | 'completed' | 'failed';
+          template?: string;
+          customizations?: any;
+          script?: string;
+          images?: string[];
+          voice_url?: string;
+          final_url?: string;
           created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          type?: string;
+          status?: 'pending' | 'processing' | 'completed' | 'failed';
+          template?: string;
+          customizations?: any;
+          script?: string;
+          images?: string[];
+          voice_url?: string;
+          final_url?: string;
+          created_at?: string;
+          updated_at?: string;
         };
       };
       gameplay_library: {

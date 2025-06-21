@@ -1,0 +1,207 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+
+// Server-side: Check user and credits
+const cookies = Astro.cookies.get('supabase-auth-token')?.value;
+let serverUser = null;
+let serverCredits = null;
+let serverError = null;
+
+if (cookies) {
+  try {
+    const session = JSON.parse(cookies);
+    if (session?.access_token) {
+      const { data: { user }, error: userError } = await supabase.auth.getUser(session.access_token);
+      if (user) {
+        serverUser = user;
+        
+        // Try to get credits from database
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          
+          if (profileError) {
+            serverError = `Profile error: ${profileError.message}`;
+          } else {
+            serverCredits = profile;
+          }
+        } catch (e) {
+          serverError = `Profile query failed: ${e.message}`;
+        }
+      } else {
+        serverError = `User error: ${userError?.message}`;
+      }
+    }
+  } catch (e) {
+    serverError = `Session parse error: ${e.message}`;
+  }
+}
+---
+
+<Layout title="Debug Credits">
+  <main class="container mx-auto px-4 py-8 max-w-4xl">
+    <h1 class="text-3xl font-bold mb-8">Credit Debug Page</h1>
+    
+    <!-- Server-side info -->
+    <div class="bg-gray-100 p-6 rounded-lg mb-8">
+      <h2 class="text-xl font-semibold mb-4">Server-Side Credit Information</h2>
+      <div class="space-y-2 font-mono text-sm">
+        <p>User authenticated: <span class="font-bold">{serverUser ? 'YES' : 'NO'}</span></p>
+        {serverUser && (
+          <>
+            <p>User ID: <span class="font-bold">{serverUser.id}</span></p>
+            <p>User email: <span class="font-bold">{serverUser.email}</span></p>
+          </>
+        )}
+        <p>Credits profile found: <span class="font-bold">{serverCredits ? 'YES' : 'NO'}</span></p>
+        {serverCredits && (
+          <>
+            <p>Credits available: <span class="font-bold">{serverCredits.credits_available}</span></p>
+            <p>Plan type: <span class="font-bold">{serverCredits.plan_type}</span></p>
+            <p>Profile created: <span class="font-bold">{serverCredits.created_at}</span></p>
+          </>
+        )}
+        {serverError && (
+          <p class="text-red-600">Error: {serverError}</p>
+        )}
+      </div>
+    </div>
+    
+    <!-- Client-side info -->
+    <div id="clientInfo" class="bg-blue-100 p-6 rounded-lg mb-8">
+      <h2 class="text-xl font-semibold mb-4">Client-Side Credit Information</h2>
+      <div id="clientDetails" class="space-y-2 font-mono text-sm">
+        <p>Loading...</p>
+      </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="space-y-4">
+      <button id="initCreditsBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+        Initialize Credits (Set to 1)
+      </button>
+      
+      <button id="refreshBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+        Refresh Page
+      </button>
+      
+      <a href="/" class="inline-block bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+        Go to Homepage
+      </a>
+    </div>
+  </main>
+  
+  <script>
+    async function checkClientCredits() {
+      const clientDetails = document.getElementById('clientDetails');
+      
+      let html = '';
+      
+      // Check localStorage
+      const localCredits = localStorage.getItem('userCredits');
+      html += `<p>localStorage 'userCredits': <span class="font-bold">${localCredits || 'NOT SET'}</span></p>`;
+      
+      // Check if we have a session
+      try {
+        const { supabase } = await import('../lib/supabase-client');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user?.id) {
+          html += `<p>Client session user ID: <span class="font-bold">${session.user.id}</span></p>`;
+          
+          // Check CreditTracker
+          const { CreditTracker } = await import('../lib/credit-tracker');
+          const trackerCredits = CreditTracker.getLocalCredits(session.user.id);
+          html += `<p>CreditTracker credits: <span class="font-bold">${trackerCredits}</span></p>`;
+          
+          // Try to fetch from database
+          try {
+            const { data: profile, error } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (error) {
+              html += `<p class="text-red-600">Database error: ${error.message}</p>`;
+            } else if (profile) {
+              html += `<p>Database credits: <span class="font-bold">${profile.credits_available}</span></p>`;
+              html += `<p>Database plan: <span class="font-bold">${profile.plan_type}</span></p>`;
+            } else {
+              html += `<p class="text-yellow-600">No database profile found</p>`;
+            }
+          } catch (e) {
+            html += `<p class="text-red-600">Database query failed: ${e.message}</p>`;
+          }
+        } else {
+          html += `<p class="text-red-600">No client session found</p>`;
+        }
+      } catch (e) {
+        html += `<p class="text-red-600">Client error: ${e.message}</p>`;
+      }
+      
+      clientDetails.innerHTML = html;
+    }
+    
+    // Initialize credits
+    document.getElementById('initCreditsBtn').addEventListener('click', async () => {
+      try {
+        const { supabase } = await import('../lib/supabase-client');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.user?.id) {
+          alert('No user session found!');
+          return;
+        }
+        
+        // Set localStorage
+        localStorage.setItem('userCredits', '1');
+        
+        // Set CreditTracker
+        const { CreditTracker } = await import('../lib/credit-tracker');
+        CreditTracker.setLocalCredits(session.user.id, 1);
+        
+        // Try to call the init API
+        try {
+          const response = await fetch('/api/init-credits', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            }
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            alert('Credits initialized successfully!');
+          } else {
+            alert(`Database initialization failed: ${result.error}`);
+          }
+        } catch (e) {
+          console.error('API call failed:', e);
+          alert('Database API failed, but localStorage set to 1');
+        }
+        
+        // Refresh the display
+        checkClientCredits();
+        
+      } catch (e) {
+        console.error('Initialization failed:', e);
+        alert(`Failed to initialize: ${e.message}`);
+      }
+    });
+    
+    // Refresh button
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      window.location.reload();
+    });
+    
+    // Check on load
+    checkClientCredits();
+  </script>
+</Layout> 

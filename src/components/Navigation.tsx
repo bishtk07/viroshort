@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditBalance } from './CreditBalance';
+import CreditBalance from './CreditBalance';
 
 export const Navigation: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -7,7 +7,7 @@ export const Navigation: React.FC = () => {
   const handleSignOut = async () => {
     try {
       // Import supabase client
-      const { supabase } = await import('../lib/supabase');
+      const { supabase } = await import('../lib/supabase-client');
       
       // Sign out the user
       const { error } = await supabase.auth.signOut();

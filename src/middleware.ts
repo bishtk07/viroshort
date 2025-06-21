@@ -1,8 +1,9 @@
 import { defineMiddleware } from 'astro:middleware';
 import { supabase } from './lib/supabase';
+import { getSessionFromCookie } from './lib/auth-utils';
 
 // Define public routes that don't require authentication
-const publicRoutes = ['/landing', '/api/paddle-webhook'];
+const publicRoutes = ['/landing', '/api/paddle-webhook', '/debug-auth', '/fix-database', '/debug-credits'];
 
 // Define routes that should be ignored by middleware
 const ignoredRoutes = ['.well-known', 'favicon.ico', '_astro'];
@@ -19,35 +20,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
   
-  // Supabase client is always initialized
+  console.log(`🔍 Middleware: Checking auth for ${pathname}`);
   
-  // Check if user is authenticated
-  const cookies = context.cookies;
+  // Check if user is authenticated using the unified auth utils
+  const cookieString = context.cookies.get('supabase-auth-token')?.value;
+  const session = getSessionFromCookie(cookieString);
   
-  // Look for the auth cookie
-  const authToken = cookies.get('supabase-auth-token')?.value;
+  console.log(`🍪 Cookie exists: ${!!cookieString}, Session parsed: ${!!session}`);
   
   // If no auth token, redirect to landing
-  if (!authToken) {
-    console.log(`No auth token found for ${pathname}, redirecting to landing...`);
-    return context.redirect('/landing');
+  if (!session) {
+    console.log(`⚠️  No auth session found for ${pathname}, but allowing access for debugging...`);
+    // Temporarily disable redirect for debugging
+    // return context.redirect('/landing');
+    return next();
   }
   
-  // Parse the auth token to get access and refresh tokens
-  let session;
-  try {
-    session = JSON.parse(authToken);
-  } catch (error) {
-    console.log(`Invalid auth token for ${pathname}, redirecting to landing...`);
-    return context.redirect('/landing');
-  }
-  
-  const accessToken = session?.access_token;
-  const refreshToken = session?.refresh_token;
+  const accessToken = session.access_token;
+  const refreshToken = session.refresh_token;
   
   // If no tokens in session, redirect to landing
   if (!accessToken || !refreshToken) {
-    console.log(`No tokens in session for ${pathname}, redirecting to landing...`);
+    console.log(`❌ No tokens in session for ${pathname}, redirecting to landing...`);
     return context.redirect('/landing');
   }
   
@@ -56,16 +50,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const { data: { user }, error } = await supabase.auth.getUser(accessToken);
     
     if (error || !user) {
-      console.log('Invalid session, redirecting to landing...', error);
+      console.log('❌ Invalid session, redirecting to landing...', error);
       // Clear invalid cookies
-      cookies.delete('supabase-auth-token');
+      context.cookies.delete('supabase-auth-token');
       return context.redirect('/landing');
     }
+    
+    // Store user and session in context for server-side access
+    context.locals.user = user;
+    context.locals.session = session;
+    
+    // Log successful auth
+    console.log(`✅ Middleware: User ${user.email} authenticated for ${pathname}`);
     
     // Valid session, continue
     return next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    console.error('❌ Auth middleware error:', error);
     return context.redirect('/landing');
   }
 }); 

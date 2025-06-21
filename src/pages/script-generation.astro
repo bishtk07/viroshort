@@ -86,32 +86,103 @@ const { template, duration, topic } = Astro.url.searchParams;
       errorState.classList.add('hidden');
 
       try {
+        // Get authentication token
+        const { supabase } = await import('../lib/supabase-client');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          throw new Error('You must be logged in to generate scripts');
+        }
+
+        // Get current credits from localStorage for validation
+        const userCredits = localStorage.getItem('userCredits') || '1';
+        console.log('💰 Including user credits in request:', userCredits);
+
         const response = await fetch('/api/generate-script', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({
             template: new URLSearchParams(window.location.search).get('template'),
             duration: new URLSearchParams(window.location.search).get('duration'),
-            topic: new URLSearchParams(window.location.search).get('topic')
+            topic: new URLSearchParams(window.location.search).get('topic'),
+            prompt: new URLSearchParams(window.location.search).get('topic') || 'Create an engaging story',
+            userCredits: userCredits // ✅ Send current credits for validation
           })
         });
 
         const data = await response.json();
+        
+        if (response.status === 402) {
+          // No credits - show upgrade modal
+          throw new Error('no_credits:' + (data.message || 'You have no credits remaining. Please upgrade your plan.'));
+        }
+        
+        if (response.status === 401) {
+          // Not authenticated
+          throw new Error('auth_required:Please log in to generate scripts');
+        }
         
         if (data.success) {
           currentScript = data.script;
           scriptText.textContent = data.script;
           loadingState.classList.add('hidden');
           scriptContent.classList.remove('hidden');
+          
+          // Update credits display if available
+          if (data.creditsRemaining !== undefined) {
+            localStorage.setItem('userCredits', data.creditsRemaining.toString());
+            // Dispatch event to update credit display
+            window.dispatchEvent(new CustomEvent('credits-updated', { 
+              detail: { credits: data.creditsRemaining } 
+            }));
+          }
         } else {
           throw new Error(data.error || 'Failed to generate script');
         }
       } catch (error) {
         loadingState.classList.add('hidden');
         errorState.classList.remove('hidden');
-        document.getElementById('errorMessage').textContent = error.message;
+        
+        const errorMessage = error.message;
+        if (errorMessage.startsWith('no_credits:')) {
+          // Show upgrade modal
+          const message = errorMessage.substring('no_credits:'.length);
+          document.getElementById('errorMessage').innerHTML = `
+            <div class="space-y-4">
+              <p class="font-semibold">${message}</p>
+              <p>Choose a plan to continue creating amazing videos:</p>
+              <div class="grid grid-cols-3 gap-4 mt-4">
+                <a href="/billing" class="block p-4 border-2 border-blue-500 rounded-lg hover:bg-blue-50 transition-colors">
+                  <div class="font-semibold">Starter</div>
+                  <div class="text-2xl font-bold">$19/mo</div>
+                  <div class="text-sm text-gray-600">15 credits</div>
+                </a>
+                <a href="/billing" class="block p-4 border-2 border-purple-500 rounded-lg hover:bg-purple-50 transition-colors">
+                  <div class="font-semibold">Daily</div>
+                  <div class="text-2xl font-bold">$39/mo</div>
+                  <div class="text-sm text-gray-600">30 credits</div>
+                </a>
+                <a href="/billing" class="block p-4 border-2 border-green-500 rounded-lg hover:bg-green-50 transition-colors">
+                  <div class="font-semibold">Hardcore</div>
+                  <div class="text-2xl font-bold">$69/mo</div>
+                  <div class="text-sm text-gray-600">60 credits</div>
+                </a>
+              </div>
+            </div>
+          `;
+          document.getElementById('retryBtn').classList.add('hidden');
+        } else if (errorMessage.startsWith('auth_required:')) {
+          const message = errorMessage.substring('auth_required:'.length);
+          document.getElementById('errorMessage').textContent = message;
+          setTimeout(() => {
+            window.location.href = '/landing';
+          }, 2000);
+        } else {
+          document.getElementById('errorMessage').textContent = errorMessage;
+        }
       }
     }
 

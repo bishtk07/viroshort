@@ -1,0 +1,385 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+
+// Check if the user is authenticated
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) {
+  return Astro.redirect('/landing');
+}
+
+// Check if tables already exist
+let tablesExist = false;
+let userHasProfile = false;
+let currentCredits = 0;
+
+try {
+  const { data: profile, error } = await supabase
+    .from('user_profiles')
+    .select('credits_available, plan_type')
+    .eq('id', session.user.id)
+    .single();
+  
+  if (!error && profile) {
+    tablesExist = true;
+    userHasProfile = true;
+    currentCredits = profile.credits_available;
+  }
+} catch (e) {
+  // Tables might not exist
+}
+---
+
+<Layout title="Setup Credits - Viroshort">
+  <main class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+      <h1 class="text-4xl font-bold mb-8">Credit System Setup</h1>
+      
+      {tablesExist && userHasProfile ? (
+        <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
+          <h2 class="text-2xl font-semibold text-green-800 mb-2">✅ Credit System is Active!</h2>
+          <p class="text-green-700">
+            Your credit system is already set up. You currently have <strong>{currentCredits}</strong> credits.
+          </p>
+          <a href="/" class="inline-block mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+            Return to Dashboard
+          </a>
+        </div>
+      ) : (
+        <>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-semibold text-yellow-800 mb-2">⚠️ Database Setup Required</h2>
+            <p class="text-yellow-700">
+              The credit system tables need to be created in your Supabase database.
+              Follow the instructions below to set up the credit system.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Setup Instructions</h2>
+            <ol class="space-y-4 text-gray-700">
+              <li class="flex items-start">
+                <span class="font-bold mr-2">1.</span>
+                <div>
+                  <p>Go to your Supabase dashboard and navigate to the SQL Editor</p>
+                </div>
+              </li>
+              <li class="flex items-start">
+                <span class="font-bold mr-2">2.</span>
+                <div>
+                  <p>Copy the SQL migration below</p>
+                </div>
+              </li>
+              <li class="flex items-start">
+                <span class="font-bold mr-2">3.</span>
+                <div>
+                  <p>Paste it into the SQL Editor and click "Run"</p>
+                </div>
+              </li>
+              <li class="flex items-start">
+                <span class="font-bold mr-2">4.</span>
+                <div>
+                  <p>Refresh this page to verify the setup</p>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </>
+      )}
+
+      <div class="bg-gray-900 rounded-lg p-6 overflow-x-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold text-white">SQL Migration</h3>
+          <button
+            id="copy-button"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            Copy to Clipboard
+          </button>
+        </div>
+        <pre id="sql-content" class="text-gray-300 text-sm"><code>{`-- Credit System Schema for Viroshort
+-- This migration sets up the complete credit system
+
+-- Create user profiles table for credit system
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    credits_available INTEGER DEFAULT 1,
+    plan_type TEXT DEFAULT 'free',
+    subscription_status TEXT DEFAULT 'inactive',
+    paddle_subscription_id TEXT,
+    monthly_credits_used INTEGER DEFAULT 0,
+    monthly_reset_date TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW() + INTERVAL '1 month'),
+    total_credits_purchased INTEGER DEFAULT 1,
+    total_credits_used INTEGER DEFAULT 0
+);
+
+-- Create credit transactions table for tracking credit usage
+CREATE TABLE IF NOT EXISTS credit_transactions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    type TEXT NOT NULL, -- 'purchase', 'usage', 'refund', 'bonus'
+    amount INTEGER NOT NULL, -- positive for credits added, negative for credits used
+    description TEXT,
+    video_id UUID REFERENCES videos(id),
+    paddle_transaction_id TEXT
+);
+
+-- Enable Row Level Security
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE credit_transactions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for user_profiles
+CREATE POLICY "Users can view their own profile" ON user_profiles
+    FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile" ON user_profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile" ON user_profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- RLS Policies for credit_transactions
+CREATE POLICY "Users can view their own transactions" ON credit_transactions
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own transactions" ON credit_transactions
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Create function to handle updated_at
+CREATE OR REPLACE FUNCTION handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = TIMEZONE('utc', NOW());
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Create triggers for updated_at
+CREATE TRIGGER user_profiles_updated_at
+    BEFORE UPDATE ON user_profiles
+    FOR EACH ROW
+    EXECUTE PROCEDURE handle_updated_at();
+
+-- Create function to initialize user profile on signup
+CREATE OR REPLACE FUNCTION create_user_profile()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.user_profiles (id, credits_available, plan_type)
+    VALUES (NEW.id, 1, 'free');
+    
+    -- Add initial credit transaction
+    INSERT INTO public.credit_transactions (user_id, type, amount, description)
+    VALUES (NEW.id, 'bonus', 1, 'Welcome bonus - 1 free credit');
+    
+    RETURN NEW;
+END;
+$$ language 'plpgsql' security definer;
+
+-- Trigger to create profile when user signs up
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE PROCEDURE create_user_profile();
+
+-- Function to check user credits and plan details
+CREATE OR REPLACE FUNCTION check_user_credits(p_user_id UUID)
+RETURNS JSONB AS $$
+DECLARE
+    profile_data RECORD;
+    result JSONB;
+BEGIN
+    -- Get user profile data
+    SELECT * INTO profile_data
+    FROM user_profiles
+    WHERE id = p_user_id;
+    
+    -- If no profile exists, create one
+    IF NOT FOUND THEN
+        INSERT INTO user_profiles (id, credits_available, plan_type)
+        VALUES (p_user_id, 1, 'free')
+        RETURNING * INTO profile_data;
+        
+        -- Add initial credit transaction
+        INSERT INTO credit_transactions (user_id, type, amount, description)
+        VALUES (p_user_id, 'bonus', 1, 'Welcome bonus - 1 free credit');
+    END IF;
+    
+    -- Build result JSON
+    result := jsonb_build_object(
+        'credits_available', profile_data.credits_available,
+        'plan_type', profile_data.plan_type,
+        'subscription_status', profile_data.subscription_status,
+        'monthly_limit', CASE 
+            WHEN profile_data.plan_type = 'starter' THEN 15
+            WHEN profile_data.plan_type = 'daily' THEN 30
+            WHEN profile_data.plan_type = 'hardcore' THEN 60
+            ELSE 1
+        END,
+        'weekly_limit', CASE 
+            WHEN profile_data.plan_type = 'starter' THEN 3
+            WHEN profile_data.plan_type = 'daily' THEN 7
+            WHEN profile_data.plan_type = 'hardcore' THEN 15
+            ELSE 1
+        END,
+        'is_weekly_plan', false,
+        'monthly_credits_used', profile_data.monthly_credits_used,
+        'total_credits_used', profile_data.total_credits_used
+    );
+    
+    RETURN result;
+END;
+$$ language 'plpgsql' security definer set search_path = '';
+
+-- Function to consume credits for video generation
+CREATE OR REPLACE FUNCTION consume_credit_for_video(p_user_id UUID, p_video_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+    current_credits INTEGER;
+    profile_exists BOOLEAN;
+BEGIN
+    -- Check if profile exists and get current credits
+    SELECT credits_available INTO current_credits
+    FROM user_profiles
+    WHERE id = p_user_id;
+    
+    -- If no profile found, return false
+    IF NOT FOUND THEN
+        RETURN FALSE;
+    END IF;
+    
+    -- Check if user has credits available
+    IF current_credits <= 0 THEN
+        RETURN FALSE;
+    END IF;
+    
+    -- Consume one credit
+    UPDATE user_profiles
+    SET 
+        credits_available = credits_available - 1,
+        monthly_credits_used = monthly_credits_used + 1,
+        total_credits_used = total_credits_used + 1,
+        updated_at = TIMEZONE('utc', NOW())
+    WHERE id = p_user_id;
+    
+    -- Record the transaction
+    INSERT INTO credit_transactions (user_id, type, amount, description, video_id)
+    VALUES (p_user_id, 'usage', -1, 'Credit used for video generation', p_video_id);
+    
+    RETURN TRUE;
+END;
+$$ language 'plpgsql' security definer set search_path = '';
+
+-- Function to add credits (for purchases/bonuses)
+CREATE OR REPLACE FUNCTION add_credits(p_user_id UUID, p_amount INTEGER, p_description TEXT, p_transaction_id TEXT DEFAULT NULL)
+RETURNS BOOLEAN AS $$
+BEGIN
+    -- Update user credits
+    UPDATE user_profiles
+    SET 
+        credits_available = credits_available + p_amount,
+        total_credits_purchased = total_credits_purchased + p_amount,
+        updated_at = TIMEZONE('utc', NOW())
+    WHERE id = p_user_id;
+    
+    -- Record the transaction
+    INSERT INTO credit_transactions (user_id, type, amount, description, paddle_transaction_id)
+    VALUES (p_user_id, 'purchase', p_amount, p_description, p_transaction_id);
+    
+    RETURN TRUE;
+END;
+$$ language 'plpgsql' security definer set search_path = '';
+
+-- Function to update user plan and credits based on subscription
+CREATE OR REPLACE FUNCTION update_user_subscription(
+    p_user_id UUID,
+    p_plan_type TEXT,
+    p_subscription_status TEXT,
+    p_paddle_subscription_id TEXT,
+    p_credits_to_add INTEGER
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    -- Update user profile with new subscription details
+    UPDATE user_profiles
+    SET 
+        plan_type = p_plan_type,
+        subscription_status = p_subscription_status,
+        paddle_subscription_id = p_paddle_subscription_id,
+        credits_available = credits_available + p_credits_to_add,
+        total_credits_purchased = total_credits_purchased + p_credits_to_add,
+        monthly_reset_date = TIMEZONE('utc', NOW() + INTERVAL '1 month'),
+        updated_at = TIMEZONE('utc', NOW())
+    WHERE id = p_user_id;
+    
+    -- Record the credit addition
+    IF p_credits_to_add > 0 THEN
+        INSERT INTO credit_transactions (user_id, type, amount, description, paddle_transaction_id)
+        VALUES (p_user_id, 'purchase', p_credits_to_add, 
+                'Credits added for ' || p_plan_type || ' plan subscription', p_paddle_subscription_id);
+    END IF;
+    
+    RETURN TRUE;
+END;
+$$ language 'plpgsql' security definer set search_path = '';
+
+-- Create profile for existing users (run once)
+-- This ensures any existing users get their free credit
+INSERT INTO user_profiles (id, credits_available, plan_type)
+SELECT id, 1, 'free'
+FROM auth.users
+WHERE id NOT IN (SELECT id FROM user_profiles)
+ON CONFLICT (id) DO NOTHING;
+
+-- Add welcome bonus transaction for existing users without one
+INSERT INTO credit_transactions (user_id, type, amount, description)
+SELECT id, 'bonus', 1, 'Welcome bonus - 1 free credit'
+FROM auth.users
+WHERE id NOT IN (
+    SELECT DISTINCT user_id 
+    FROM credit_transactions 
+    WHERE type = 'bonus' AND description = 'Welcome bonus - 1 free credit'
+);`}</code></pre>
+      </div>
+
+      <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h3 class="text-xl font-semibold text-blue-800 mb-2">📋 Credit System Features</h3>
+        <ul class="space-y-2 text-blue-700">
+          <li>• New users automatically receive 1 free credit</li>
+          <li>• Free users cannot download videos</li>
+          <li>• Credits are consumed when generating videos</li>
+          <li>• Subscription plans:
+            <ul class="ml-6 mt-2 space-y-1">
+              <li>- <strong>Free:</strong> 1 credit (no downloads)</li>
+              <li>- <strong>Starter:</strong> $19/month - 15 credits</li>
+              <li>- <strong>Daily:</strong> $39/month - 30 credits</li>
+              <li>- <strong>Hardcore:</strong> $69/month - 60 credits</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('copy-button')?.addEventListener('click', async () => {
+      const sqlContent = document.getElementById('sql-content')?.textContent;
+      if (sqlContent) {
+        await navigator.clipboard.writeText(sqlContent);
+        const button = document.getElementById('copy-button');
+        if (button) {
+          button.textContent = 'Copied!';
+          button.classList.add('bg-green-600');
+          button.classList.remove('bg-blue-600');
+          setTimeout(() => {
+            button.textContent = 'Copy to Clipboard';
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-blue-600');
+          }, 2000);
+        }
+      }
+    });
+  </script>
+</Layout> 

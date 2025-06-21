@@ -1,0 +1,180 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+import { getSessionFromCookie } from '../lib/auth-utils';
+
+// Server-side: Check cookies
+const cookies = Astro.cookies.get('supabase-auth-token')?.value;
+const serverSession = getSessionFromCookie(cookies);
+
+// Server-side: Check Supabase session
+let serverSupabaseSession = null;
+let serverError = null;
+try {
+  if (serverSession) {
+    const { data, error } = await supabase.auth.getUser(serverSession.access_token);
+    if (data?.user) {
+      serverSupabaseSession = data.user;
+    }
+    serverError = error;
+  }
+} catch (e) {
+  serverError = e;
+}
+---
+
+<Layout title="Debug Authentication">
+  <main class="container mx-auto px-4 py-8 max-w-4xl">
+    <h1 class="text-3xl font-bold mb-8">Authentication Debug Page</h1>
+    
+    <!-- Server-side info -->
+    <div class="bg-gray-100 p-6 rounded-lg mb-8">
+      <h2 class="text-xl font-semibold mb-4">Server-Side Authentication</h2>
+      <div class="space-y-2 font-mono text-sm">
+        <p>Cookie exists: <span class="font-bold">{cookies ? 'YES' : 'NO'}</span></p>
+        <p>Cookie length: <span class="font-bold">{cookies?.length || 0}</span></p>
+        <p>Session parsed: <span class="font-bold">{serverSession ? 'YES' : 'NO'}</span></p>
+        {cookies && (
+          <details class="mt-2">
+            <summary class="cursor-pointer text-sm">Show raw cookie content</summary>
+            <pre class="mt-2 p-2 bg-gray-200 text-xs overflow-x-auto">{cookies}</pre>
+          </details>
+        )}
+        {serverSession && (
+          <>
+            <p>Access token: <span class="font-bold">{serverSession.access_token.substring(0, 20)}...</span></p>
+            <p>Refresh token: <span class="font-bold">{serverSession.refresh_token.substring(0, 20)}...</span></p>
+          </>
+        )}
+        <p>Supabase user verified: <span class="font-bold">{serverSupabaseSession ? 'YES' : 'NO'}</span></p>
+        {serverSupabaseSession && (
+          <p>User email: <span class="font-bold">{serverSupabaseSession.email}</span></p>
+        )}
+        {serverError && (
+          <p class="text-red-600">Error: {serverError.message}</p>
+        )}
+      </div>
+    </div>
+    
+    <!-- Client-side info -->
+    <div id="clientInfo" class="bg-blue-100 p-6 rounded-lg mb-8">
+      <h2 class="text-xl font-semibold mb-4">Client-Side Authentication</h2>
+      <div id="clientDetails" class="space-y-2 font-mono text-sm">
+        <p>Loading...</p>
+      </div>
+    </div>
+    
+    <!-- All cookies -->
+    <div class="bg-yellow-100 p-6 rounded-lg mb-8">
+      <h2 class="text-xl font-semibold mb-4">All Browser Cookies</h2>
+      <div id="allCookies" class="font-mono text-xs whitespace-pre-wrap break-all">
+        Loading...
+      </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="space-y-4">
+      <button id="refreshBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+        Refresh Page
+      </button>
+      
+      <button id="clearAuthBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+        Clear Authentication
+      </button>
+      
+      <a href="/landing" class="inline-block bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+        Go to Login Page
+      </a>
+      
+      <a href="/" class="inline-block bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+        Go to Homepage
+      </a>
+    </div>
+  </main>
+  
+  <script>
+    // Note: These imports need to be done differently in Astro script tags
+    const { supabase } = await import('../lib/supabase-client');
+    const { getSessionFromCookie } = await import('../lib/auth-utils');
+    
+    async function checkClientAuth() {
+      const clientDetails = document.getElementById('clientDetails');
+      const allCookiesDiv = document.getElementById('allCookies');
+      
+      // Show all cookies
+      allCookiesDiv.textContent = document.cookie || 'No cookies found';
+      
+      let html = '';
+      
+      // Check cookie
+      const cookieSession = getSessionFromCookie();
+      html += `<p>Cookie exists: <span class="font-bold">${cookieSession ? 'YES' : 'NO'}</span></p>`;
+      
+      if (cookieSession) {
+        html += `<p>Access token from cookie: <span class="font-bold">${cookieSession.access_token.substring(0, 20)}...</span></p>`;
+        html += `<p>Refresh token from cookie: <span class="font-bold">${cookieSession.refresh_token.substring(0, 20)}...</span></p>`;
+      }
+      
+      // Check Supabase session
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          html += `<p class="text-red-600">Supabase error: ${error.message}</p>`;
+        } else if (session) {
+          html += `<p>Supabase session: <span class="font-bold">YES</span></p>`;
+          html += `<p>User email: <span class="font-bold">${session.user.email}</span></p>`;
+          html += `<p>Session expires: <span class="font-bold">${new Date(session.expires_at * 1000).toLocaleString()}</span></p>`;
+        } else {
+          html += `<p>Supabase session: <span class="font-bold">NO</span></p>`;
+        }
+      } catch (e) {
+        html += `<p class="text-red-600">Client error: ${e.message}</p>`;
+      }
+      
+      // Check localStorage
+      html += `<h3 class="font-semibold mt-4">LocalStorage:</h3>`;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.includes('supabase')) {
+          const value = localStorage.getItem(key);
+          html += `<p class="text-xs">${key}: ${value?.substring(0, 50)}...</p>`;
+        }
+      }
+      
+      clientDetails.innerHTML = html;
+    }
+    
+    // Check on load
+    checkClientAuth();
+    
+    // Refresh button
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      window.location.reload();
+    });
+    
+    // Clear auth button
+    document.getElementById('clearAuthBtn').addEventListener('click', async () => {
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Clear all cookies
+      document.cookie.split(";").forEach(c => {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      
+      // Clear localStorage
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.includes('supabase')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      alert('Authentication cleared! Redirecting to landing page...');
+      window.location.href = '/landing';
+    });
+  </script>
+</Layout> 

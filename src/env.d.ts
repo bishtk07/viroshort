@@ -21,4 +21,20 @@ interface ImportMetaEnv {
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
+}
+
+// Extend Astro's Locals interface to include our custom properties
+declare namespace App {
+  interface Locals {
+    user?: {
+      id: string;
+      email?: string;
+      [key: string]: any;
+    };
+    session?: {
+      access_token: string;
+      refresh_token: string;
+      [key: string]: any;
+    };
+  }
 } 
