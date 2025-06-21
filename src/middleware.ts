@@ -2,30 +2,52 @@ import { defineMiddleware } from 'astro:middleware';
 import { supabase } from './lib/supabase';
 
 // Define public routes that don't require authentication
-const publicRoutes = ['/landing', '/api/paddle-webhook', '/'];
+const publicRoutes = ['/landing', '/api/paddle-webhook'];
+
+// Define routes that should be ignored by middleware
+const ignoredRoutes = ['.well-known', 'favicon.ico', '_astro'];
+
+function shouldIgnoreRoute(pathname: string): boolean {
+  return ignoredRoutes.some(route => pathname.includes(route));
+}
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
   
-  // Allow public routes and API routes
-  if (publicRoutes.includes(pathname) || pathname.startsWith('/api/')) {
+  // Allow public routes, API routes, and ignored routes (like DevTools)
+  if (publicRoutes.includes(pathname) || pathname.startsWith('/api/') || shouldIgnoreRoute(pathname)) {
     return next();
   }
   
-  // Skip authentication check if Supabase client is not initialized (during build)
-  if (!supabase) {
-    console.warn('Supabase client not initialized, skipping auth check');
-    return next();
-  }
+  // Supabase client is always initialized
   
-  // For protected routes (like /dashboard), check authentication
+  // Check if user is authenticated
   const cookies = context.cookies;
-  const accessToken = cookies.get('sb-access-token')?.value;
-  const refreshToken = cookies.get('sb-refresh-token')?.value;
   
-  // If no tokens, redirect to landing
+  // Look for the auth cookie
+  const authToken = cookies.get('supabase-auth-token')?.value;
+  
+  // If no auth token, redirect to landing
+  if (!authToken) {
+    console.log(`No auth token found for ${pathname}, redirecting to landing...`);
+    return context.redirect('/landing');
+  }
+  
+  // Parse the auth token to get access and refresh tokens
+  let session;
+  try {
+    session = JSON.parse(authToken);
+  } catch (error) {
+    console.log(`Invalid auth token for ${pathname}, redirecting to landing...`);
+    return context.redirect('/landing');
+  }
+  
+  const accessToken = session?.access_token;
+  const refreshToken = session?.refresh_token;
+  
+  // If no tokens in session, redirect to landing
   if (!accessToken || !refreshToken) {
-    console.log('No tokens found, redirecting to landing...');
+    console.log(`No tokens in session for ${pathname}, redirecting to landing...`);
     return context.redirect('/landing');
   }
   
@@ -36,8 +58,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (error || !user) {
       console.log('Invalid session, redirecting to landing...', error);
       // Clear invalid cookies
-      cookies.delete('sb-access-token');
-      cookies.delete('sb-refresh-token');
+      cookies.delete('supabase-auth-token');
       return context.redirect('/landing');
     }
     

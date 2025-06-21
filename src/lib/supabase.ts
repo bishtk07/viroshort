@@ -1,25 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+// Use the same credentials as the landing page
+const supabaseUrl = 'https://ihcpenmluoolrokmjufy.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloY3Blbm1sdW9vbHJva21qdWZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MDkzMzUsImV4cCI6MjA2MDQ4NTMzNX0.C0a7e2DDZEzmDadb3CSlX_QGhAO-_1ie-kKQmv4wEOs';
 
-// Create a conditional client that doesn't fail during build
-let supabase: ReturnType<typeof createClient> | null = null;
+// Create the Supabase client (server-side, no special storage needed)
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: false, // Server-side doesn't need auto-refresh
+    persistSession: false,   // Server-side doesn't persist sessions
+    detectSessionInUrl: false
+  }
+});
 
-if (supabaseUrl && supabaseAnonKey) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
-} else {
-  console.warn('Supabase environment variables not found - client not initialized');
-}
-
-// Export the client with null check
+// Export the client
 export { supabase };
 
 // Helper function to get supabase client with error handling
 export function getSupabaseClient() {
-  if (!supabase) {
-    throw new Error('Supabase client not initialized. Check environment variables.');
-  }
   return supabase;
 }
 
