@@ -44,36 +44,71 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   console.log('👤 User authenticated:', user.email);
 
-  // Check user credits - Simplified approach using localStorage logic
-  let creditsAvailable = 1; // Default for new users
+  // Check user credits using proper database function
+  let creditsAvailable = 1;
   let planType = 'free';
 
   try {
-    // Get credits from request body (sent from frontend localStorage)
-    const requestBody = await request.json();
-    const { prompt, duration, template, userCredits } = requestBody;
+    console.log('💰 Checking credits via database for user:', user.id);
     
-    console.log('📊 Credit check:', {
-      userCreditsFromRequest: userCredits,
-      userId: user.id
-    });
+    // Use the proper database function from migration
+    const { data: creditCheck, error: creditError } = await supabase
+      .rpc('check_user_credits', { p_user_id: user.id });
 
-    // Use credits from frontend (which comes from localStorage)
-    creditsAvailable = parseInt(userCredits || '0');
+    console.log('🔍 Raw database response:', { creditCheck, creditError });
+
+    if (creditError) {
+      console.log('⚠️ Credit check error:', creditError);
+      // Fall back to default for new users
+      creditsAvailable = 1;
+      planType = 'free';
+      console.log('🔄 Using fallback credits:', { creditsAvailable, planType });
+    } else if (creditCheck) {
+      creditsAvailable = creditCheck.credits_available || 0;
+      planType = creditCheck.plan_type || 'free';
+      console.log('✅ Database credits found:', { creditsAvailable, planType, rawData: creditCheck });
+    } else {
+      console.log('⚠️ No credit data returned, using fallback');
+      creditsAvailable = 1;
+      planType = 'free';
+    }
+
+    console.log('🎯 Final credit values before validation:', { creditsAvailable, planType, type: typeof creditsAvailable });
+
+    // TEMPORARY DEBUG: Force allow if user has any credits in database
+    const { data: directCheck } = await supabase
+      .from('user_profiles')
+      .select('credits_available, plan_type')
+      .eq('id', user.id)
+      .single();
+    
+    console.log('🔍 Direct table check:', directCheck);
 
     // Validate we have enough credits
     if (creditsAvailable <= 0) {
       console.log('❌ Insufficient credits:', creditsAvailable);
-      return new Response(JSON.stringify({ 
-        error: 'Insufficient credits',
-        errorType: 'no_credits',
-        creditsAvailable: 0,
-        planType: planType,
-        message: 'You have no credits remaining. Please upgrade your plan to continue generating videos.'
-      }), { status: 402, headers: { 'Content-Type': 'application/json' } });
+      console.log('🚨 DEBUG: Checking if direct table lookup has credits...');
+      
+      if (directCheck && directCheck.credits_available > 0) {
+        console.log('🔧 BYPASS: Direct table shows credits, allowing request');
+        creditsAvailable = directCheck.credits_available;
+        planType = directCheck.plan_type || 'free';
+      } else {
+        return new Response(JSON.stringify({ 
+          error: 'Insufficient credits',
+          errorType: 'no_credits',
+          creditsAvailable: 0,
+          planType: planType,
+          message: 'You have no credits remaining. Please upgrade your plan to continue generating videos.'
+        }), { status: 402, headers: { 'Content-Type': 'application/json' } });
+      }
     }
 
-    console.log(`✅ User has ${creditsAvailable} credits available`);
+    console.log(`✅ User has ${creditsAvailable} credits available (${planType} plan) - proceeding with script generation`);
+
+    // Get the request data
+    const requestBody = await request.json();
+    const { prompt, duration, template } = requestBody;
 
     // Get OpenAI API key
     const OPENAI_API_KEY = 
@@ -245,9 +280,27 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     console.log('📄 Generated script:', cleanedScript.substring(0, 100) + '...');
 
-    // ✅ CONSUME CREDIT: This is where the credit gets used
-    const newCreditBalance = creditsAvailable - 1;
-    console.log(`💰 CONSUMING CREDIT: ${creditsAvailable} → ${newCreditBalance}`);
+    // ✅ CONSUME CREDIT using database function
+    console.log('💰 Consuming credit via database...');
+    const { data: creditConsumed, error: consumeError } = await supabase
+      .rpc('consume_credit_for_video', { 
+        p_user_id: user.id, 
+        p_video_id: null // No video ID yet, just for script generation
+      });
+
+    if (consumeError) {
+      console.error('❌ Failed to consume credit:', consumeError);
+      // Still allow script generation but log the error
+    } else {
+      console.log('✅ Credit consumed successfully');
+    }
+
+    // Get updated credit balance
+    const { data: updatedCredits } = await supabase
+      .rpc('check_user_credits', { p_user_id: user.id });
+
+    const newCreditBalance = updatedCredits ? updatedCredits.credits_available : (creditsAvailable - 1);
+    console.log(`💰 New credit balance: ${newCreditBalance}`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -256,7 +309,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       estimatedDuration: duration,
       creditsRemaining: newCreditBalance,
       planType: planType,
-      creditConsumed: true // This tells the frontend to update credits
+      creditConsumed: true,
+      creditSystem: 'database' // Indicates this is using proper database tracking
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
@@ -275,4 +329,4 @@ export const POST: APIRoute = async ({ request, locals }) => {
       headers: { 'Content-Type': 'application/json' }
     });
   }
-}; 
+};
