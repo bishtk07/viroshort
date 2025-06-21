@@ -153,19 +153,19 @@ DECLARE
     profile_data RECORD;
     result JSONB;
 BEGIN
-    -- Get user profile data
+    -- Get user profile data with proper schema prefix
     SELECT * INTO profile_data
-    FROM user_profiles
+    FROM public.user_profiles
     WHERE id = p_user_id;
     
     -- If no profile exists, create one
     IF NOT FOUND THEN
-        INSERT INTO user_profiles (id, credits_available, plan_type)
+        INSERT INTO public.user_profiles (id, credits_available, plan_type)
         VALUES (p_user_id, 1, 'free')
         RETURNING * INTO profile_data;
         
         -- Add initial credit transaction
-        INSERT INTO credit_transactions (user_id, transaction_type, amount, description, balance_after)
+        INSERT INTO public.credit_transactions (user_id, transaction_type, amount, description, balance_after)
         VALUES (p_user_id, 'credit', 1, 'Welcome bonus - 1 free credit', 1);
     END IF;
     
@@ -204,7 +204,7 @@ DECLARE
 BEGIN
     -- Check if profile exists and get current credits
     SELECT credits_available INTO current_credits
-    FROM user_profiles
+    FROM public.user_profiles
     WHERE id = p_user_id;
     
     -- If no profile found, return false
@@ -218,7 +218,7 @@ BEGIN
     END IF;
     
     -- Consume one credit
-    UPDATE user_profiles
+    UPDATE public.user_profiles
     SET 
         credits_available = credits_available - 1,
         monthly_credits_used = monthly_credits_used + 1,
@@ -227,7 +227,7 @@ BEGIN
     WHERE id = p_user_id;
     
     -- Record the transaction
-    INSERT INTO credit_transactions (user_id, transaction_type, amount, description, video_id, balance_after)
+    INSERT INTO public.credit_transactions (user_id, transaction_type, amount, description, video_id, balance_after)
     VALUES (p_user_id, 'debit', -1, 'Credit used for video generation', p_video_id, current_credits - 1);
     
     RETURN TRUE;
@@ -239,7 +239,7 @@ CREATE OR REPLACE FUNCTION add_credits(p_user_id UUID, p_amount INTEGER, p_descr
 RETURNS BOOLEAN AS $$
 BEGIN
     -- Update user credits
-    UPDATE user_profiles
+    UPDATE public.user_profiles
     SET 
         credits_available = credits_available + p_amount,
         total_credits_purchased = total_credits_purchased + p_amount,
@@ -247,9 +247,9 @@ BEGIN
     WHERE id = p_user_id;
     
     -- Record the transaction
-    INSERT INTO credit_transactions (user_id, transaction_type, amount, description, paddle_transaction_id, balance_after)
+    INSERT INTO public.credit_transactions (user_id, transaction_type, amount, description, paddle_transaction_id, balance_after)
     VALUES (p_user_id, 'credit', p_amount, p_description, p_transaction_id, 
-            (SELECT credits_available FROM user_profiles WHERE id = p_user_id));
+            (SELECT credits_available FROM public.user_profiles WHERE id = p_user_id));
     
     RETURN TRUE;
 END;
@@ -266,7 +266,7 @@ CREATE OR REPLACE FUNCTION update_user_subscription(
 RETURNS BOOLEAN AS $$
 BEGIN
     -- Update user profile with new subscription details
-    UPDATE user_profiles
+    UPDATE public.user_profiles
     SET 
         plan_type = p_plan_type,
         subscription_status = p_subscription_status,
@@ -279,10 +279,10 @@ BEGIN
     
     -- Record the credit addition
     IF p_credits_to_add > 0 THEN
-        INSERT INTO credit_transactions (user_id, transaction_type, amount, description, paddle_transaction_id, balance_after)
+        INSERT INTO public.credit_transactions (user_id, transaction_type, amount, description, paddle_transaction_id, balance_after)
         VALUES (p_user_id, 'credit', p_credits_to_add, 
                 'Credits added for ' || p_plan_type || ' plan subscription', p_paddle_subscription_id,
-                (SELECT credits_available FROM user_profiles WHERE id = p_user_id));
+                (SELECT credits_available FROM public.user_profiles WHERE id = p_user_id));
     END IF;
     
     RETURN TRUE;
